@@ -1126,7 +1126,21 @@
             <dependency>
                 <groupId>com.hadoop.gplcompression</groupId>
                 <artifactId>hadoop-lzo</artifactId>
-                <version>0.4.19</version>
+                <version>0.4.20</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.code.findbugs</groupId>
+                        <artifactId>annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>
