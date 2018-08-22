@@ -239,8 +239,8 @@
         </dependency>
 
         <dependency>
-            <groupId>org.anarres.lzo</groupId>
-            <artifactId>lzo-hadoop</artifactId>
+            <groupId>com.hadoop.gplcompression</groupId>
+            <artifactId>hadoop-lzo</artifactId>
         </dependency>
 
         <!-- used by tests but also needed transitively -->
