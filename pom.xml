@@ -119,6 +119,7 @@
         <module>presto-matching</module>
         <module>presto-twitter-functions</module>
         <module>presto-memory-context</module>
+        <module>twitter-gcp-audit-log</module>
     </modules>
 
     <dependencyManagement>

@@ -1,0 +1,10 @@
+<runtime>
+    <!-- Target -->
+    <archive name="${project.artifactId}-${project.version}.tar.gz" />
+
+    <artifactSet to="plugin/twitter-gcp-audit-log">
+        <artifact id="${project.groupId}:twitter-gcp-audit-log:zip:${project.version}">
+            <unpack />
+        </artifact>
+    </artifactSet>
+</runtime>
