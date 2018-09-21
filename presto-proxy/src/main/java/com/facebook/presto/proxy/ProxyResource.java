@@ -86,6 +86,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.TEXT_PLAIN_TYPE;
 import static javax.ws.rs.core.Response.Status.BAD_GATEWAY;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
+import static javax.ws.rs.core.Response.Status.NOT_ACCEPTABLE;
 import static javax.ws.rs.core.Response.noContent;
 
 @Path("/")
@@ -153,7 +154,7 @@ public class ProxyResource
             performRequest(servletRequest, asyncResponse, request, response -> buildResponse(uriInfo, response));
         }
         else {
-            throw new ProxyException("Query is highly likely to exceed resource cap, please try optimize you query.");
+            throw badRequest(NOT_ACCEPTABLE, "Proxy request failed: query highly likely will exceed resource cap");
         }
     }
 
