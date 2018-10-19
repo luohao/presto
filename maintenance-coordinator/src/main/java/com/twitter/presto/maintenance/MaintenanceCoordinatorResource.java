@@ -211,7 +211,10 @@ public class MaintenanceCoordinatorResource
         private final boolean drain;
 
         @JsonCreator
-        public DrainResponse(@JsonProperty("drain") boolean drain) { this.drain = drain; }
+        public DrainResponse(@JsonProperty("drain") boolean drain)
+        {
+            this.drain = drain;
+        }
 
         @JsonProperty
         public boolean getDrain()
