@@ -121,7 +121,6 @@
         <module>presto-memory-context</module>
         <module>presto-proxy</module>
         <module>presto-kudu</module>
-        <module>maintenance-coordinator</module>
     </modules>
 
     <dependencyManagement>
@@ -699,6 +698,12 @@
                 <version>${dep.antlr.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20180813</version>
+            </dependency>
+            
             <dependency>
                 <groupId>com.microsoft.sqlserver</groupId>
                 <artifactId>mssql-jdbc</artifactId>

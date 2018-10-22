@@ -11,26 +11,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.twitter.presto.maintenance;
+package com.facebook.presto.twitter.aurora;
 
-import io.airlift.configuration.Config;
+import com.google.inject.Binder;
+import com.google.inject.Module;
 
-import javax.validation.constraints.NotNull;
+import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
+import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 
-public class MaintenanceCoordinatorConfig
+public class MaintenanceCoordinatorModule
+        implements Module
 {
-    private String version;
-
-    @Config("maintenance.coordinator.version")
-    public MaintenanceCoordinatorConfig setVersion(String version)
+    @Override
+    public void configure(Binder binder)
     {
-        this.version = version;
-        return this;
-    }
-
-    @NotNull
-    public String getVersion()
-    {
-        return version;
+        httpClientBinder(binder).bindHttpClient("maintenance", ForAurora.class);
+        jaxrsBinder(binder).bind(MaintenanceCoordinatorResource.class);
     }
 }

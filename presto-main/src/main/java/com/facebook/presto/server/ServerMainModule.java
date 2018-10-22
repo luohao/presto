@@ -128,6 +128,7 @@ import com.facebook.presto.sql.tree.FunctionCall;
 import com.facebook.presto.transaction.NoOpTransactionManager;
 import com.facebook.presto.transaction.TransactionManager;
 import com.facebook.presto.transaction.TransactionManagerConfig;
+import com.facebook.presto.twitter.aurora.MaintenanceCoordinatorModule;
 import com.facebook.presto.type.TypeDeserializer;
 import com.facebook.presto.type.TypeRegistry;
 import com.facebook.presto.util.FinalizerService;
@@ -193,6 +194,7 @@ public class ServerMainModule
 
         if (serverConfig.isCoordinator()) {
             install(new CoordinatorModule());
+            install(new MaintenanceCoordinatorModule());
         }
         else {
             // Install no-op session supplier on workers, since only coordinators create sessions.

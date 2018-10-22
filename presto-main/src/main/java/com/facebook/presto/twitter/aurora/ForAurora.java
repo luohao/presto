@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.twitter.presto.maintenance;
+package com.facebook.presto.twitter.aurora;
 
 import javax.inject.Qualifier;
 

@@ -28,6 +28,7 @@ public class ServerConfig
     private boolean includeExceptionInResponse = true;
     private Duration gracePeriod = new Duration(2, MINUTES);
     private boolean enhancedErrorReporting = true;
+    private boolean embededMaintenanceCoordinator = true;
 
     public boolean isCoordinator()
     {

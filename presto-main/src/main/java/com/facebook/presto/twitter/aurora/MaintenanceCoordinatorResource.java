@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.twitter.presto.maintenance;
+package com.facebook.presto.twitter.aurora;
 
 import com.facebook.presto.server.remotetask.Backoff;
 import com.facebook.presto.spi.NodeState;
@@ -32,7 +32,6 @@ import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import org.json.JSONObject;
 
-import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.WebApplicationException;
@@ -63,30 +62,25 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.TEXT_PLAIN_TYPE;
 
-@Path("/")
+@Path("/canDrain")
 public class MaintenanceCoordinatorResource
 {
     private static final Logger log = Logger.get(MaintenanceCoordinatorResource.class);
     private final HttpClient httpClient;
     private final ExecutorService executor;
     private final ScheduledExecutorService scheduledExecutor;
-    private final String version;
 
     @Inject
-    public MaintenanceCoordinatorResource(@ForAurora HttpClient httpClient, MaintenanceCoordinatorConfig config)
+    public MaintenanceCoordinatorResource(@ForAurora HttpClient httpClient)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
-        this.executor = newCachedThreadPool(daemonThreadsNamed("proxy-%s"));
-        this.scheduledExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("maintenance-coordinator-%s"));
-        this.version = config.getVersion();
+        this.executor = newCachedThreadPool(daemonThreadsNamed("maintenance-coordinator-%s"));
+        this.scheduledExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("maintenance-coordinator-schedule-%s"));
     }
 
     @POST
-    @Path("/")
-    @Consumes(APPLICATION_JSON)
     public void canDrain(
             String jsonString,
             @Suspended AsyncResponse asyncResponse)
@@ -128,6 +122,7 @@ public class MaintenanceCoordinatorResource
                 .getJSONObject("assignedPorts")
                 .get("http");
 
+        // TODO: add more checks on this host to make sure it is actually a Presto worker
         return URI.create("http://" + hostName + ":" + port);
     }
 
