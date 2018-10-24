@@ -119,6 +119,7 @@ public class MaintenanceCoordinatorResource
                 .toString();
         int port = (Integer) jsonBody
                 .getJSONObject("taskConfig")
+                .getJSONObject("assignedTask")
                 .getJSONObject("assignedPorts")
                 .get("http");
 
