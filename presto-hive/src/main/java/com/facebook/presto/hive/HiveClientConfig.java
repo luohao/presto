@@ -137,6 +137,8 @@ public class HiveClientConfig
     private int partitionStatisticsSampleSize = 100;
     private boolean collectColumnStatisticsOnWrite;
 
+    private String gcsAccessToken;
+
     public int getMaxInitialSplits()
     {
         return maxInitialSplits;
@@ -1086,6 +1088,18 @@ public class HiveClientConfig
     public HiveClientConfig setCollectColumnStatisticsOnWrite(boolean collectColumnStatisticsOnWrite)
     {
         this.collectColumnStatisticsOnWrite = collectColumnStatisticsOnWrite;
+        return this;
+    }
+
+    public String getGcsAccessToken()
+    {
+        return gcsAccessToken;
+    }
+
+    @Config("hive.gcs.access-token")
+    public HiveClientConfig setGcsAccessToken(String gcsAccessToken)
+    {
+        this.gcsAccessToken = gcsAccessToken;
         return this;
     }
 }

@@ -19,6 +19,8 @@ import com.facebook.presto.hive.authentication.GenericExceptionAction;
 import com.facebook.presto.hive.authentication.HdfsAuthentication;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.security.Identity;
+import com.facebook.presto.twitter.hive.security.GcsConfigurationUpdater;
+import com.facebook.presto.twitter.hive.security.GcsCredential;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,6 +30,9 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.Optional;
 
+import static com.facebook.presto.hive.util.ConfigurationUtils.copy;
+import static com.facebook.presto.twitter.hive.security.GcsCredential.GCS_ACCESS_TOKEN;
+import static com.facebook.presto.twitter.hive.security.GcsCredential.createGcsCredential;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
@@ -55,7 +60,13 @@ public class HdfsEnvironment
 
     public Configuration getConfiguration(HdfsContext context, Path path)
     {
-        return hdfsConfiguration.getConfiguration(context, path.toUri());
+        // FIXME: should I make a copy of the thread local config object or reset the property every time? security vs performance...
+        // make a copy of the object
+        Configuration config = new Configuration(false);
+        copy(hdfsConfiguration.getConfiguration(context, path.toUri()), config);
+        GcsConfigurationUpdater.updateConfiguration(config, context.getGcsCredential());
+
+        return config;
     }
 
     public FileSystem getFileSystem(HdfsContext context, Path path)
@@ -92,6 +103,7 @@ public class HdfsEnvironment
         private final Optional<String> queryId;
         private final Optional<String> schemaName;
         private final Optional<String> tableName;
+        private final Optional<GcsCredential> gcsCredential;
 
         public HdfsContext(Identity identity)
         {
@@ -100,6 +112,7 @@ public class HdfsEnvironment
             this.queryId = Optional.empty();
             this.schemaName = Optional.empty();
             this.tableName = Optional.empty();
+            this.gcsCredential = Optional.empty();
         }
 
         public HdfsContext(ConnectorSession session, String schemaName)
@@ -111,6 +124,7 @@ public class HdfsEnvironment
             this.queryId = Optional.of(session.getQueryId());
             this.schemaName = Optional.of(schemaName);
             this.tableName = Optional.empty();
+            this.gcsCredential = Optional.of(createGcsCredential(session.getProperty(GCS_ACCESS_TOKEN, String.class)));
         }
 
         public HdfsContext(ConnectorSession session, String schemaName, String tableName)
@@ -123,6 +137,7 @@ public class HdfsEnvironment
             this.queryId = Optional.of(session.getQueryId());
             this.schemaName = Optional.of(schemaName);
             this.tableName = Optional.of(tableName);
+            this.gcsCredential = Optional.ofNullable(createGcsCredential(session.getProperty(GCS_ACCESS_TOKEN, String.class)));
         }
 
         public Identity getIdentity()
@@ -150,6 +165,11 @@ public class HdfsEnvironment
             return tableName;
         }
 
+        public Optional<GcsCredential> getGcsCredential()
+        {
+            return gcsCredential;
+        }
+
         @Override
         public String toString()
         {
@@ -160,6 +180,7 @@ public class HdfsEnvironment
                     .add("queryId", queryId.orElse(null))
                     .add("schemaName", schemaName.orElse(null))
                     .add("tableName", tableName.orElse(null))
+                    .add("gcsCredential", gcsCredential.orElse(null))
                     .toString();
         }
     }
