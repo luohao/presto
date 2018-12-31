@@ -19,6 +19,7 @@ import com.facebook.presto.security.AccessControl;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.QueryId;
+import com.facebook.presto.spi.security.CredentialBearerPrincipal;
 import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.session.ResourceEstimates;
 import com.facebook.presto.spi.type.TimeZoneKey;
@@ -414,6 +415,12 @@ public final class Session
 
     public SessionRepresentation toSessionRepresentation()
     {
+        Optional<Principal> principal = identity.getPrincipal();
+        Optional<Map<String, String>> credentials = Optional.empty();
+        if (principal.isPresent() && principal.get() instanceof CredentialBearerPrincipal) {
+            CredentialBearerPrincipal credentialBearerPrincipal = (CredentialBearerPrincipal) principal.get();
+            credentials = Optional.of(credentialBearerPrincipal.getAllCredentials());
+        }
         return new SessionRepresentation(
                 queryId.toString(),
                 transactionId,
@@ -437,7 +444,8 @@ public final class Session
                 systemProperties,
                 connectorProperties,
                 unprocessedCatalogProperties,
-                preparedStatements);
+                preparedStatements,
+                credentials);
     }
 
     @Override

@@ -14,6 +14,8 @@
 package com.facebook.presto.hive;
 
 import com.facebook.presto.hive.HdfsEnvironment.HdfsContext;
+import com.facebook.presto.spi.security.CredentialBearerPrincipal;
+import com.facebook.presto.spi.security.Identity;
 import org.apache.hadoop.conf.Configuration;
 
 import javax.inject.Inject;
@@ -54,6 +56,19 @@ public class HiveHdfsConfiguration
     public Configuration getConfiguration(HdfsContext context, URI uri)
     {
         // use the same configuration for everything
-        return hadoopConfiguration.get();
+        // XXX: do we need to make a copy?
+        return updateGcsCredential(context.getIdentity(), hadoopConfiguration.get());
+    }
+
+    static Configuration updateGcsCredential(Identity identity, Configuration defaultConfig)
+    {
+        Configuration config = copy(defaultConfig);
+        identity.getPrincipal().ifPresent(p -> {
+            if (p instanceof CredentialBearerPrincipal) {
+                CredentialBearerPrincipal principal = (CredentialBearerPrincipal) p;
+                principal.getCredential("fs.gs.auth.service.account.token").ifPresent(c -> config.set("fs.gs.auth.service.account.token", c));
+            }
+        });
+        return config;
     }
 }

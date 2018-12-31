@@ -17,6 +17,7 @@ import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.spi.QueryId;
 import com.facebook.presto.spi.security.BasicPrincipal;
+import com.facebook.presto.spi.security.CredentialBearerPrincipal;
 import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.session.ResourceEstimates;
 import com.facebook.presto.spi.type.TimeZoneKey;
@@ -32,6 +33,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 public final class SessionRepresentation
@@ -59,6 +61,7 @@ public final class SessionRepresentation
     private final Map<ConnectorId, Map<String, String>> catalogProperties;
     private final Map<String, Map<String, String>> unprocessedCatalogProperties;
     private final Map<String, String> preparedStatements;
+    private final Optional<Map<String, String>> credentials;
 
     @JsonCreator
     public SessionRepresentation(
@@ -84,7 +87,8 @@ public final class SessionRepresentation
             @JsonProperty("systemProperties") Map<String, String> systemProperties,
             @JsonProperty("catalogProperties") Map<ConnectorId, Map<String, String>> catalogProperties,
             @JsonProperty("unprocessedCatalogProperties") Map<String, Map<String, String>> unprocessedCatalogProperties,
-            @JsonProperty("preparedStatements") Map<String, String> preparedStatements)
+            @JsonProperty("preparedStatements") Map<String, String> preparedStatements,
+            @JsonProperty("credentials") Optional<Map<String, String>> credentials)
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.transactionId = requireNonNull(transactionId, "transactionId is null");
@@ -107,6 +111,13 @@ public final class SessionRepresentation
         this.startTime = startTime;
         this.systemProperties = ImmutableMap.copyOf(systemProperties);
         this.preparedStatements = ImmutableMap.copyOf(preparedStatements);
+
+        if (credentials.isPresent()) {
+            this.credentials = Optional.of(ImmutableMap.copyOf(credentials.get()));
+        }
+        else {
+            this.credentials = Optional.empty();
+        }
 
         ImmutableMap.Builder<ConnectorId, Map<String, String>> catalogPropertiesBuilder = ImmutableMap.builder();
         for (Entry<ConnectorId, Map<String, String>> entry : catalogProperties.entrySet()) {
@@ -261,11 +272,19 @@ public final class SessionRepresentation
 
     public Session toSession(SessionPropertyManager sessionPropertyManager)
     {
+        Identity identity;
+        if (credentials.isPresent()) {
+            checkArgument(principal.isPresent(), "can't have credentials without principal");
+            identity = new Identity(user, Optional.of(new CredentialBearerPrincipal(principal.get(), credentials.get())));
+        }
+        else {
+            identity = new Identity(user, principal.map(BasicPrincipal::new));
+        }
         return new Session(
                 new QueryId(queryId),
                 transactionId,
                 clientTransactionSupport,
-                new Identity(user, principal.map(BasicPrincipal::new)),
+                identity,
                 source,
                 catalog,
                 schema,

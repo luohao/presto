@@ -25,6 +25,7 @@ public class PasswordAuthenticatorPlugin
     {
         return ImmutableList.<PasswordAuthenticatorFactory>builder()
                 .add(new LdapAuthenticatorFactory())
+                .add(new ConnectorCredentialAuthenticatorFactory())
                 .build();
     }
 }
