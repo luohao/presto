@@ -115,6 +115,13 @@
             <version>2.10.6</version>
         </dependency>
 
+        <!-- bq streamer -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-bigquery</artifactId>
+            <version>1.55.0</version>
+        </dependency>
+
         <!-- for testing -->
         <dependency>
             <groupId>org.testng</groupId>
