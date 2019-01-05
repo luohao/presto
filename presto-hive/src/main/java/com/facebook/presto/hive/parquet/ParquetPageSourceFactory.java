@@ -71,6 +71,7 @@ import static com.facebook.presto.parquet.ParquetTypeUtils.getDescriptors;
 import static com.facebook.presto.parquet.ParquetTypeUtils.getParquetTypeByName;
 import static com.facebook.presto.parquet.predicate.PredicateUtils.buildPredicate;
 import static com.facebook.presto.parquet.predicate.PredicateUtils.predicateMatches;
+import static com.facebook.presto.parquet.reader.ParquetReader.INITIAL_BATCH_SIZE;
 import static com.google.common.base.Strings.nullToEmpty;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -189,7 +190,9 @@ public class ParquetPageSourceFactory
                     messageColumnIO,
                     blocks.build(),
                     dataSource,
-                    systemMemoryContext);
+                    systemMemoryContext,
+                    INITIAL_BATCH_SIZE
+                    );
 
             return new ParquetPageSource(
                     parquetReader,
@@ -199,7 +202,8 @@ public class ParquetPageSourceFactory
                     schema,
                     columns,
                     effectivePredicate,
-                    useParquetColumnNames);
+                    useParquetColumnNames,
+                    stats);
         }
         catch (Exception e) {
             try {

@@ -28,6 +28,7 @@ import com.facebook.presto.spi.block.RunLengthEncodedBlock;
 import com.facebook.presto.spi.type.MapType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeSignatureParameter;
+import io.airlift.units.DataSize;
 import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
 import it.unimi.dsi.fastutil.booleans.BooleanList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -51,6 +52,7 @@ import static com.facebook.presto.spi.type.StandardTypes.ARRAY;
 import static com.facebook.presto.spi.type.StandardTypes.MAP;
 import static com.facebook.presto.spi.type.StandardTypes.ROW;
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -59,6 +61,8 @@ public class ParquetReader
         implements Closeable
 {
     private static final int MAX_VECTOR_LENGTH = 1024;
+    public static final int INITIAL_BATCH_SIZE = 1;
+    private static final int BATCH_SIZE_GROWTH_FACTOR = 2;
 
     private final List<BlockMetaData> blocks;
     private final List<PrimitiveColumnIO> columns;
@@ -70,22 +74,41 @@ public class ParquetReader
     private long currentPosition;
     private long currentGroupRowCount;
     private long nextRowInGroup;
-    private int batchSize;
+    private int currentBatchSize;
+    private int nextBatchSize;
+    private int maxBatchSize = MAX_VECTOR_LENGTH;
     private final PrimitiveColumnReader[] columnReaders;
+    private final long[] maxBytesPerCell;
+    private final long maxBlockBytes;
+    private long maxCombinedBytesPerRow;
 
     private AggregatedMemoryContext currentRowGroupMemoryContext;
 
     public ParquetReader(MessageColumnIO messageColumnIO,
             List<BlockMetaData> blocks,
             ParquetDataSource dataSource,
-            AggregatedMemoryContext systemMemoryContext)
+            AggregatedMemoryContext systemMemoryContext,
+            DataSize maxBlockSize)
     {
         this.blocks = blocks;
         this.dataSource = requireNonNull(dataSource, "dataSource is null");
         this.systemMemoryContext = requireNonNull(systemMemoryContext, "systemMemoryContext is null");
         this.currentRowGroupMemoryContext = systemMemoryContext.newAggregatedMemoryContext();
+        this.maxBlockBytes = requireNonNull(maxBlockSize, "maxBlockSize is null").toBytes();
         columns = messageColumnIO.getLeaves();
         columnReaders = new PrimitiveColumnReader[columns.size()];
+        maxBytesPerCell = new long[columnReaders.length];
+
+        // FIXME: make it configurable
+        nextBatchSize = 1;
+    }
+
+    /**
+     * Returns the sum of the largest cells in size from each column
+     */
+    public long getMaxCombinedBytesPerRow()
+    {
+        return maxCombinedBytesPerRow;
     }
 
     @Override
@@ -107,13 +130,14 @@ public class ParquetReader
             return -1;
         }
 
-        batchSize = toIntExact(min(MAX_VECTOR_LENGTH, currentGroupRowCount - nextRowInGroup));
+        currentBatchSize = toIntExact(min(MAX_VECTOR_LENGTH, currentGroupRowCount - nextRowInGroup));
 
-        nextRowInGroup += batchSize;
-        currentPosition += batchSize;
+
+        nextRowInGroup += currentBatchSize;
+        currentPosition += currentBatchSize;
         Arrays.stream(columnReaders)
-                .forEach(reader -> reader.prepareNextRead(batchSize));
-        return batchSize;
+                .forEach(reader -> reader.prepareNextRead(currentBatchSize));
+        return currentBatchSize;
     }
 
     private boolean advanceToNextRowGroup()
@@ -236,10 +260,19 @@ public class ParquetReader
         }
     }
 
-    public Block readBlock(Field field)
+    public Block readBlock(Field field, int columnIndex)
             throws IOException
     {
-        return readColumnChunk(field).getBlock();
+        Block block = readColumnChunk(field).getBlock();
+        if (block.getPositionCount() > 0) {
+            long bytesPerCell = block.getSizeInBytes() / block.getPositionCount();
+            if (maxBytesPerCell[field.] < bytesPerCell) {
+                maxCombinedBytesPerRow = maxCombinedBytesPerRow - maxBytesPerCell[columnIndex] + bytesPerCell;
+                maxBytesPerCell[columnIndex] = bytesPerCell;
+                maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxBlockBytes / maxCombinedBytesPerRow)));
+            }
+        }
+        return block;
     }
 
     private ColumnChunk readColumnChunk(Field field)

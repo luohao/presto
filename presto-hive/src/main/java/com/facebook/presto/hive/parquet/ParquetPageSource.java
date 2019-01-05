@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.hive.parquet;
 
+import com.facebook.presto.hive.FileFormatDataSourceStats;
 import com.facebook.presto.hive.HiveColumnHandle;
 import com.facebook.presto.parquet.Field;
 import com.facebook.presto.parquet.ParquetCorruptionException;
@@ -65,6 +66,7 @@ public class ParquetPageSource
     private int batchId;
     private boolean closed;
     private final boolean useParquetColumnNames;
+    private final FileFormatDataSourceStats stats;
 
     public ParquetPageSource(
             ParquetReader parquetReader,
@@ -74,7 +76,8 @@ public class ParquetPageSource
             Properties splitSchema,
             List<HiveColumnHandle> columns,
             TupleDomain<HiveColumnHandle> effectivePredicate,
-            boolean useParquetColumnNames)
+            boolean useParquetColumnNames,
+            FileFormatDataSourceStats stats)
     {
         requireNonNull(splitSchema, "splitSchema is null");
         requireNonNull(columns, "columns is null");
@@ -82,6 +85,7 @@ public class ParquetPageSource
         this.parquetReader = requireNonNull(parquetReader, "parquetReader is null");
         this.fileSchema = requireNonNull(fileSchema, "fileSchema is null");
         this.useParquetColumnNames = useParquetColumnNames;
+        this.stats = requireNonNull(stats, "stats is null");
 
         int size = columns.size();
         this.constantBlocks = new Block[size];
@@ -167,7 +171,7 @@ public class ParquetPageSource
                         fieldIndex = hiveColumnIndexes[fieldId];
                     }
                     if (fieldIndex != -1 && field.isPresent()) {
-                        blocks[fieldId] = new LazyBlock(batchSize, new ParquetBlockLoader(field.get()));
+                        blocks[fieldId] = new LazyBlock(batchSize, new ParquetBlockLoader(hiveColumnIndexes[fieldId], field.get()));
                     }
                     else {
                         blocks[fieldId] = RunLengthEncodedBlock.create(type, null, batchSize);
@@ -209,6 +213,7 @@ public class ParquetPageSource
         closed = true;
 
         try {
+            stats.addMaxCombinedBytesPerRow(parquetReader.getMaxCombinedBytesPerRow());
             parquetReader.close();
         }
         catch (IOException e) {
@@ -220,11 +225,13 @@ public class ParquetPageSource
             implements LazyBlockLoader<LazyBlock>
     {
         private final int expectedBatchId = batchId;
+        private final int columnIndex;
         private final Field field;
         private boolean loaded;
 
-        public ParquetBlockLoader(Field field)
+        public ParquetBlockLoader(int columnIndex, Field field)
         {
+            this.columnIndex = columnIndex;
             this.field = requireNonNull(field, "field is null");
         }
 
@@ -238,7 +245,7 @@ public class ParquetPageSource
             checkState(batchId == expectedBatchId);
 
             try {
-                Block block = parquetReader.readBlock(field);
+                Block block = parquetReader.readBlock(field, columnIndex);
                 lazyBlock.setBlock(block);
             }
             catch (ParquetCorruptionException e) {
