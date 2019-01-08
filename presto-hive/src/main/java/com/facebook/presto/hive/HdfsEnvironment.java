@@ -22,6 +22,7 @@ import com.facebook.presto.spi.security.Identity;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.ipc.CallerContext;
 
 import javax.inject.Inject;
 
@@ -61,7 +62,12 @@ public class HdfsEnvironment
     public FileSystem getFileSystem(HdfsContext context, Path path)
             throws IOException
     {
-        return getFileSystem(context.getIdentity().getUser(), path, getConfiguration(context, path));
+        FileSystem fileSystem = getFileSystem(context.getIdentity().getUser(), path, getConfiguration(context, path));
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("User_").append(context.getIdentity().getUser());
+        context.getQueryId().ifPresent(x -> stringBuilder.append("_QueryId_").append(x));
+        CallerContext.setCurrent(new CallerContext.Builder(stringBuilder.toString()).build());
+        return fileSystem;
     }
 
     public FileSystem getFileSystem(String user, Path path, Configuration configuration)
