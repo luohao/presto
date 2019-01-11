@@ -19,6 +19,7 @@ import com.facebook.presto.hive.authentication.GenericExceptionAction;
 import com.facebook.presto.hive.authentication.HdfsAuthentication;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.security.Identity;
+import com.facebook.presto.twitter.hive.security.GcsConfigurationUpdater;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -68,6 +69,7 @@ public class HdfsEnvironment
             throws IOException
     {
         return hdfsAuthentication.doAs(user, () -> {
+            System.out.println(configuration.get(GcsConfigurationUpdater.GCS_ACCESS_KEY_CONF));
             FileSystem fileSystem = path.getFileSystem(configuration);
             fileSystem.setVerifyChecksum(verifyChecksum);
             return fileSystem;

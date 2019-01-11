@@ -14,6 +14,7 @@
 package com.facebook.presto.server;
 
 import com.facebook.presto.Session.ResourceEstimateBuilder;
+import com.facebook.presto.spi.security.CredentialBearerPrincipal;
 import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.session.ResourceEstimates;
 import com.facebook.presto.sql.parser.ParsingException;
@@ -34,6 +35,7 @@ import javax.ws.rs.core.Response.Status;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.security.Principal;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -48,6 +50,7 @@ import static com.facebook.presto.client.PrestoHeaders.PRESTO_CATALOG;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLIENT_CAPABILITIES;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLIENT_INFO;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLIENT_TAGS;
+import static com.facebook.presto.client.PrestoHeaders.PRESTO_CONNECTOR_CREDENTIAL;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_LANGUAGE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_PATH;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_PREPARED_STATEMENT;
@@ -107,7 +110,18 @@ public final class HttpRequestSessionContext
 
         String user = trimEmptyToNull(servletRequest.getHeader(PRESTO_USER));
         assertRequest(user != null, "User must be set");
-        identity = new Identity(user, Optional.ofNullable(servletRequest.getUserPrincipal()));
+
+        // parse connector credential
+        // TODO: make it per catalog credential, like catalogSessionProperties
+        Map<String, String> credentials = parseConnectorCredentials(servletRequest);
+        Optional<Principal> principal;
+        if (credentials.size() > 0) {
+            principal = Optional.of(new CredentialBearerPrincipal(user, credentials));
+        }
+        else {
+            principal = Optional.ofNullable(servletRequest.getUserPrincipal());
+        }
+        identity = new Identity(user, principal);
 
         source = servletRequest.getHeader(PRESTO_SOURCE);
         traceToken = Optional.ofNullable(trimEmptyToNull(servletRequest.getHeader(PRESTO_TRACE_TOKEN)));
@@ -336,6 +350,17 @@ public final class HttpRequestSessionContext
         }
 
         return builder.build();
+    }
+
+    private Map<String, String> parseConnectorCredentials(HttpServletRequest servletRequest)
+    {
+        Map<String, String> sessionProperties = new HashMap<>();
+        for (String header : splitSessionHeader(servletRequest.getHeaders(PRESTO_CONNECTOR_CREDENTIAL))) {
+            List<String> nameValue = Splitter.on('=').limit(2).trimResults().splitToList(header);
+            assertRequest(nameValue.size() == 2, "Invalid %s header", PRESTO_CONNECTOR_CREDENTIAL);
+            sessionProperties.put(nameValue.get(0), nameValue.get(1));
+        }
+        return sessionProperties;
     }
 
     private static void assertRequest(boolean expression, String format, Object... args)

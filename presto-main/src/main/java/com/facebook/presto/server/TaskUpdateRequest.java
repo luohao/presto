@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -31,6 +32,7 @@ import static java.util.Objects.requireNonNull;
 public class TaskUpdateRequest
 {
     private final SessionRepresentation session;
+    private final Optional<Map<String, String>> connectorCredentials;
     private final Optional<PlanFragment> fragment;
     private final List<TaskSource> sources;
     private final OutputBuffers outputIds;
@@ -39,18 +41,21 @@ public class TaskUpdateRequest
     @JsonCreator
     public TaskUpdateRequest(
             @JsonProperty("session") SessionRepresentation session,
+            @JsonProperty("connectorCredentials") Optional<Map<String, String>> connectorCredentials,
             @JsonProperty("fragment") Optional<PlanFragment> fragment,
             @JsonProperty("sources") List<TaskSource> sources,
             @JsonProperty("outputIds") OutputBuffers outputIds,
             @JsonProperty("totalPartitions") OptionalInt totalPartitions)
     {
         requireNonNull(session, "session is null");
+        requireNonNull(connectorCredentials, "connectorCredentials is null");
         requireNonNull(fragment, "fragment is null");
         requireNonNull(sources, "sources is null");
         requireNonNull(outputIds, "outputIds is null");
         requireNonNull(totalPartitions, "totalPartitions is null");
 
         this.session = session;
+        this.connectorCredentials = connectorCredentials;
         this.fragment = fragment;
         this.sources = ImmutableList.copyOf(sources);
         this.outputIds = outputIds;
@@ -61,6 +66,12 @@ public class TaskUpdateRequest
     public SessionRepresentation getSession()
     {
         return session;
+    }
+
+    @JsonProperty
+    public Optional<Map<String, String>> getConnectorCredentials()
+    {
+        return connectorCredentials;
     }
 
     @JsonProperty

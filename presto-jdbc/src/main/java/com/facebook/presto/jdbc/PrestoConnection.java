@@ -661,6 +661,7 @@ public class PrestoConnection
         int millis = networkTimeoutMillis.get();
         Duration timeout = (millis > 0) ? new Duration(millis, MILLISECONDS) : new Duration(999, DAYS);
 
+        // FIXME(hluo): adding support in JDBC driver
         ClientSession session = new ClientSession(
                 httpUri,
                 user,
@@ -675,6 +676,7 @@ public class PrestoConnection
                 locale.get(),
                 ImmutableMap.of(),
                 ImmutableMap.copyOf(allProperties),
+                ImmutableMap.of(),
                 ImmutableMap.copyOf(preparedStatements),
                 transactionId.get(),
                 timeout);

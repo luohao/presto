@@ -31,6 +31,7 @@ import com.facebook.presto.execution.buffer.PageBufferInfo;
 import com.facebook.presto.metadata.Split;
 import com.facebook.presto.operator.TaskStats;
 import com.facebook.presto.server.TaskUpdateRequest;
+import com.facebook.presto.spi.security.CredentialBearerPrincipal;
 import com.facebook.presto.sql.planner.PlanFragment;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
@@ -57,6 +58,7 @@ import org.joda.time.DateTime;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.net.URI;
+import java.security.Principal;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -499,8 +501,18 @@ public final class HttpRemoteTask
         if (sendPlan.get()) {
             fragment = Optional.of(planFragment);
         }
+
+        Map<String, String> connectorCredentials = null;
+        if (session.getIdentity().getPrincipal().isPresent()) {
+            Principal principal = session.getIdentity().getPrincipal().get();
+            if (principal instanceof CredentialBearerPrincipal) {
+                connectorCredentials = ((CredentialBearerPrincipal) principal).getAllCredentials();
+            }
+        }
+
         TaskUpdateRequest updateRequest = new TaskUpdateRequest(
                 session.toSessionRepresentation(),
+                Optional.ofNullable(connectorCredentials),
                 fragment,
                 sources,
                 outputBuffers.get(),
@@ -725,12 +737,12 @@ public final class HttpRemoteTask
     private static Backoff createCleanupBackoff()
     {
         return new Backoff(10, new Duration(10, TimeUnit.MINUTES), Ticker.systemTicker(), ImmutableList.<Duration>builder()
-                    .add(new Duration(0, MILLISECONDS))
-                    .add(new Duration(100, MILLISECONDS))
-                    .add(new Duration(500, MILLISECONDS))
-                    .add(new Duration(1, SECONDS))
-                    .add(new Duration(10, SECONDS))
-                    .build());
+                .add(new Duration(0, MILLISECONDS))
+                .add(new Duration(100, MILLISECONDS))
+                .add(new Duration(500, MILLISECONDS))
+                .add(new Duration(1, SECONDS))
+                .add(new Duration(10, SECONDS))
+                .build());
     }
 
     @Override

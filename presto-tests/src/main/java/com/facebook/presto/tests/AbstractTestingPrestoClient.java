@@ -136,6 +136,7 @@ public abstract class AbstractTestingPrestoClient<T>
         estimates.getCpuTime().ifPresent(e -> resourceEstimates.put(CPU_TIME, e.toString()));
         estimates.getPeakMemory().ifPresent(e -> resourceEstimates.put(PEAK_MEMORY, e.toString()));
 
+        // FIXME(hluo): add tests for connector credential
         return new ClientSession(
                 server,
                 session.getIdentity().getUser(),
@@ -150,6 +151,7 @@ public abstract class AbstractTestingPrestoClient<T>
                 session.getLocale(),
                 resourceEstimates.build(),
                 properties.build(),
+                ImmutableMap.of(),
                 session.getPreparedStatements(),
                 session.getTransactionId().map(Object::toString).orElse(null),
                 clientRequestTimeout);

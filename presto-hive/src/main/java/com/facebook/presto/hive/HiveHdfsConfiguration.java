@@ -14,11 +14,15 @@
 package com.facebook.presto.hive;
 
 import com.facebook.presto.hive.HdfsEnvironment.HdfsContext;
+import com.facebook.presto.spi.security.CredentialBearerPrincipal;
+import com.facebook.presto.twitter.hive.security.GcsConfigurationUpdater;
+import jdk.nashorn.internal.ir.Optimistic;
 import org.apache.hadoop.conf.Configuration;
 
 import javax.inject.Inject;
 
 import java.net.URI;
+import java.security.Principal;
 
 import static com.facebook.presto.hive.util.ConfigurationUtils.copy;
 import static com.facebook.presto.hive.util.ConfigurationUtils.getInitialConfiguration;
@@ -53,7 +57,14 @@ public class HiveHdfsConfiguration
     @Override
     public Configuration getConfiguration(HdfsContext context, URI uri)
     {
-        // use the same configuration for everything
-        return hadoopConfiguration.get();
+        Configuration config = new Configuration();
+        copy(hadoopConfiguration.get(), config);
+        context.getIdentity().getPrincipal().ifPresent(x -> {
+            if (x instanceof CredentialBearerPrincipal) {
+                ((CredentialBearerPrincipal) x).getCredential(GcsConfigurationUpdater.GCS_ACCESS_KEY_CONF)
+                        .ifPresent(t -> GcsConfigurationUpdater.updateConfiguration(config, t));
+            }
+        });
+        return config;
     }
 }

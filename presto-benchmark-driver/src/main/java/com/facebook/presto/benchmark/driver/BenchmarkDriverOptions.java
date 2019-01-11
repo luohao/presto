@@ -85,6 +85,7 @@ public class BenchmarkDriverOptions
     @Option(name = "--client-request-timeout", title = "client request timeout", description = "Client request timeout (default: 2m)")
     public Duration clientRequestTimeout = new Duration(2, MINUTES);
 
+    // FIXME(hluo): add support for connector credential
     public ClientSession getClientSession()
     {
         return new ClientSession(
@@ -101,6 +102,7 @@ public class BenchmarkDriverOptions
                 Locale.getDefault(),
                 ImmutableMap.of(),
                 toProperties(this.sessionProperties),
+                ImmutableMap.of(),
                 ImmutableMap.of(),
                 null,
                 clientRequestTimeout);

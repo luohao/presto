@@ -24,6 +24,8 @@ import com.facebook.presto.execution.buffer.BufferResult;
 import com.facebook.presto.execution.buffer.SerializedPage;
 import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.spi.Page;
+import com.facebook.presto.spi.security.CredentialBearerPrincipal;
+import com.facebook.presto.spi.security.Identity;
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
@@ -56,7 +58,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
+import java.security.Principal;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -126,6 +130,40 @@ public class TaskResource
         requireNonNull(taskUpdateRequest, "taskUpdateRequest is null");
 
         Session session = taskUpdateRequest.getSession().toSession(sessionPropertyManager);
+        if (taskUpdateRequest.getConnectorCredentials().isPresent()) {
+            String name;
+            if (session.getIdentity().getPrincipal().isPresent()) {
+                name = session.getIdentity().getPrincipal().toString();
+            }
+            else {
+                name = session.getUser();
+            }
+            Principal principal = new CredentialBearerPrincipal(name, taskUpdateRequest.getConnectorCredentials().get());
+            session = new Session(
+                    session.getQueryId(),
+                    session.getTransactionId(),
+                    session.isClientTransactionSupport(),
+                    new Identity(session.getUser(), Optional.of(principal)),
+                    session.getSource(),
+                    session.getCatalog(),
+                    session.getSchema(),
+                    session.getPath(),
+                    session.getTraceToken(),
+                    session.getTimeZoneKey(),
+                    session.getLocale(),
+                    session.getRemoteUserAddress(),
+                    session.getUserAgent(),
+                    session.getClientInfo(),
+                    session.getClientTags(),
+                    session.getClientCapabilities(),
+                    session.getResourceEstimates(),
+                    session.getStartTime(),
+                    session.getSystemProperties(),
+                    session.getConnectorProperties(),
+                    session.getUnprocessedCatalogProperties(),
+                    sessionPropertyManager,
+                    session.getPreparedStatements());
+        }
         TaskInfo taskInfo = taskManager.updateTask(session,
                 taskId,
                 taskUpdateRequest.getFragment(),
