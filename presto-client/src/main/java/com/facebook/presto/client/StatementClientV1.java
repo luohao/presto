@@ -52,6 +52,7 @@ import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLEAR_TRANSACTION_
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLIENT_CAPABILITIES;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLIENT_INFO;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLIENT_TAGS;
+import static com.facebook.presto.client.PrestoHeaders.PRESTO_CONNECTOR_CREDENTIAL;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_DEALLOCATED_PREPARE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_LANGUAGE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_PATH;
@@ -108,6 +109,7 @@ class StatementClientV1
     private final Duration requestTimeoutNanos;
     private final String user;
     private final String clientCapabilities;
+    private final Map<String, String> connectorCredentials = new ConcurrentHashMap<>();
 
     private final AtomicReference<State> state = new AtomicReference<>(State.RUNNING);
 
@@ -175,6 +177,11 @@ class StatementClientV1
         Map<String, String> property = session.getProperties();
         for (Entry<String, String> entry : property.entrySet()) {
             builder.addHeader(PRESTO_SESSION, entry.getKey() + "=" + entry.getValue());
+        }
+
+        Map<String, String> connectorCredentials = session.getConnectorCredentials();
+        for (Entry<String, String> entry : connectorCredentials.entrySet()) {
+            builder.addHeader(PRESTO_CONNECTOR_CREDENTIAL, entry.getKey() + "=" + entry.getValue());
         }
 
         Map<String, String> resourceEstimates = session.getResourceEstimates();
@@ -293,6 +300,12 @@ class StatementClientV1
     public Set<String> getDeallocatedPreparedStatements()
     {
         return ImmutableSet.copyOf(deallocatedPreparedStatements);
+    }
+
+    @Override
+    public Map<String, String> getConnectorCredentials()
+    {
+        return ImmutableMap.copyOf(connectorCredentials);
     }
 
     @Override

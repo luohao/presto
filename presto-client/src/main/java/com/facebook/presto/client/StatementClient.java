@@ -59,6 +59,8 @@ public interface StatementClient
 
     Set<String> getDeallocatedPreparedStatements();
 
+    Map<String, String> getConnectorCredentials();
+
     @Nullable
     String getStartedTransactionId();
 

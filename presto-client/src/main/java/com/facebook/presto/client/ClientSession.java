@@ -46,6 +46,7 @@ public class ClientSession
     private final Locale locale;
     private final Map<String, String> resourceEstimates;
     private final Map<String, String> properties;
+    private final Map<String, String> connectorCredentials;
     private final Map<String, String> preparedStatements;
     private final String transactionId;
     private final Duration clientRequestTimeout;
@@ -76,6 +77,7 @@ public class ClientSession
             Locale locale,
             Map<String, String> resourceEstimates,
             Map<String, String> properties,
+            Map<String, String> connectorCredentials,
             Map<String, String> preparedStatements,
             String transactionId,
             Duration clientRequestTimeout)
@@ -94,6 +96,7 @@ public class ClientSession
         this.transactionId = transactionId;
         this.resourceEstimates = ImmutableMap.copyOf(requireNonNull(resourceEstimates, "resourceEstimates is null"));
         this.properties = ImmutableMap.copyOf(requireNonNull(properties, "properties is null"));
+        this.connectorCredentials = ImmutableMap.copyOf(requireNonNull(connectorCredentials, "connectorCredentials is null"));
         this.preparedStatements = ImmutableMap.copyOf(requireNonNull(preparedStatements, "preparedStatements is null"));
         this.clientRequestTimeout = clientRequestTimeout;
 
@@ -115,6 +118,14 @@ public class ClientSession
             checkArgument(entry.getKey().indexOf('=') < 0, "Session property name must not contain '=': %s", entry.getKey());
             checkArgument(charsetEncoder.canEncode(entry.getKey()), "Session property name is not US_ASCII: %s", entry.getKey());
             checkArgument(charsetEncoder.canEncode(entry.getValue()), "Session property value is not US_ASCII: %s", entry.getValue());
+        }
+
+        // verify the connectorCredentials are valid
+        for (Entry<String, String> entry : connectorCredentials.entrySet()) {
+            checkArgument(!entry.getKey().isEmpty(), "Connector credential name is empty");
+            checkArgument(entry.getKey().indexOf('=') < 0, "Connector credential name must not contain '=': %s", entry.getKey());
+            checkArgument(charsetEncoder.canEncode(entry.getKey()), "Connector credential name is not US_ASCII: %s", entry.getKey());
+            checkArgument(charsetEncoder.canEncode(entry.getValue()), "Connector credential value is not US_ASCII: %s", entry.getValue());
         }
     }
 
@@ -183,6 +194,11 @@ public class ClientSession
         return properties;
     }
 
+    public Map<String, String> getConnectorCredentials()
+    {
+        return connectorCredentials;
+    }
+
     public Map<String, String> getPreparedStatements()
     {
         return preparedStatements;
@@ -238,6 +254,7 @@ public class ClientSession
         private Locale locale;
         private Map<String, String> resourceEstimates;
         private Map<String, String> properties;
+        private Map<String, String> connectorCredentials;
         private Map<String, String> preparedStatements;
         private String transactionId;
         private Duration clientRequestTimeout;
@@ -258,6 +275,7 @@ public class ClientSession
             locale = clientSession.getLocale();
             resourceEstimates = clientSession.getResourceEstimates();
             properties = clientSession.getProperties();
+            connectorCredentials = clientSession.getConnectorCredentials();
             preparedStatements = clientSession.getPreparedStatements();
             transactionId = clientSession.getTransactionId();
             clientRequestTimeout = clientSession.getClientRequestTimeout();
@@ -284,6 +302,12 @@ public class ClientSession
         public Builder withProperties(Map<String, String> properties)
         {
             this.properties = requireNonNull(properties, "properties is null");
+            return this;
+        }
+
+        public Builder withConnectorCredentials(Map<String, String> connectorCredentials)
+        {
+            this.connectorCredentials = requireNonNull(connectorCredentials, "properties is null");
             return this;
         }
 
@@ -321,6 +345,7 @@ public class ClientSession
                     locale,
                     resourceEstimates,
                     properties,
+                    connectorCredentials,
                     preparedStatements,
                     transactionId,
                     clientRequestTimeout);

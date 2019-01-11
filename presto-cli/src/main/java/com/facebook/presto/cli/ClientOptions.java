@@ -128,6 +128,9 @@ public class ClientOptions
     @Option(name = "--session", title = "session", description = "Session property (property can be used multiple times; format is key=value; use 'SHOW SESSION' to see available properties)")
     public final List<ClientSessionProperty> sessionProperties = new ArrayList<>();
 
+    @Option(name = "--connector-credential", title = "connector-credential", description = "Connector credential (connector credential can be used multiple times; format is " + "key=value; use ")
+    public final List<ClientConnectorCredential> connectorCredentials = new ArrayList<>();
+
     @Option(name = "--socks-proxy", title = "socks-proxy", description = "SOCKS proxy to use for server connections")
     public HostAndPort socksProxy;
 
@@ -167,6 +170,7 @@ public class ClientOptions
                 Locale.getDefault(),
                 toResourceEstimates(resourceEstimates),
                 toProperties(sessionProperties),
+                toConnectorCredential(connectorCredentials),
                 emptyMap(),
                 null,
                 clientRequestTimeout);
@@ -212,6 +216,15 @@ public class ClientOptions
         ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
         for (ClientResourceEstimate estimate : estimates) {
             builder.put(estimate.getResource(), estimate.getEstimate());
+        }
+        return builder.build();
+    }
+
+    public static Map<String, String> toConnectorCredential(List<ClientConnectorCredential> connectorCredentials)
+    {
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+        for (ClientConnectorCredential connectorCredential : connectorCredentials) {
+            builder.put(connectorCredential.getName(), connectorCredential.getCredential());
         }
         return builder.build();
     }
@@ -366,6 +379,69 @@ public class ClientOptions
             return Objects.equals(this.catalog, other.catalog) &&
                     Objects.equals(this.name, other.name) &&
                     Objects.equals(this.value, other.value);
+        }
+    }
+
+    public static final class ClientConnectorCredential
+    {
+        private final String name;
+        private final String credential;
+
+        public ClientConnectorCredential(String connectorCredential)
+        {
+            List<String> nameValue = NAME_VALUE_SPLITTER.splitToList(connectorCredential);
+            checkArgument(nameValue.size() == 2, "Connector credential: %s", connectorCredential);
+
+            this.name = nameValue.get(0);
+            this.credential = nameValue.get(1);
+            checkArgument(!name.isEmpty(), "Connector credential name is empty");
+            checkArgument(!credential.isEmpty(), "Connector credential estimate is empty");
+            checkArgument(PRINTABLE_ASCII.matchesAllOf(name), "Connector credential name contains spaces or is not US_ASCII: %s", name);
+            checkArgument(name.indexOf('=') < 0, "Connector credential name must not contain '=': %s", name);
+            checkArgument(PRINTABLE_ASCII.matchesAllOf(credential), "Connector credential contains spaces or is not US_ASCII: %s", credential);
+        }
+
+        @VisibleForTesting
+        public ClientConnectorCredential(String name, String credential)
+        {
+            this.name = requireNonNull(name, "name is null");
+            this.credential = credential;
+        }
+
+        public String getName()
+        {
+            return name;
+        }
+
+        public String getCredential()
+        {
+            return credential;
+        }
+
+        @Override
+        public String toString()
+        {
+            return name + '=' + credential;
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ClientConnectorCredential other = (ClientConnectorCredential) o;
+            return Objects.equals(name, other.name) &&
+                    Objects.equals(credential, other.credential);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(name, credential);
         }
     }
 }
