@@ -102,7 +102,8 @@ public class HiveClientConfig
 
     private boolean useParquetColumnNames;
     private boolean failOnCorruptedParquetStatistics = true;
-    private DataSize parquetMaxReadBlockSize = new DataSize(16, MEGABYTE);
+    private DataSize parquetMaxReadPrimitiveBlockSize = new DataSize(16, MEGABYTE);
+    private DataSize parquetMaxReadCombinedBlockSize = new DataSize(128, MEGABYTE);
 
     private boolean assumeCanonicalPartitionKeys;
 
@@ -921,15 +922,28 @@ public class HiveClientConfig
     }
 
     @NotNull
-    public DataSize getParquetMaxReadBlockSize()
+    public DataSize getParquetMaxReadPrimitiveBlockSize()
     {
-        return parquetMaxReadBlockSize;
+        return parquetMaxReadPrimitiveBlockSize;
     }
 
-    @Config("hive.parquet.max-read-block-size")
-    public HiveClientConfig setParquetMaxReadBlockSize(DataSize parquetMaxReadBlockSize)
+    @Config("hive.parquet.max-read-primitive-block-size")
+    public HiveClientConfig setParquetMaxReadPrimitiveBlockSize(DataSize parquetMaxReadPrimitiveBlockSize)
     {
-        this.parquetMaxReadBlockSize = parquetMaxReadBlockSize;
+        this.parquetMaxReadPrimitiveBlockSize = parquetMaxReadPrimitiveBlockSize;
+        return this;
+    }
+
+    @NotNull
+    public DataSize getParquetMaxReadCombinedBlockSize()
+    {
+        return parquetMaxReadCombinedBlockSize;
+    }
+
+    @Config("hive.parquet.max-read-combined-block-size")
+    public HiveClientConfig setParquetMaxReadCombinedBlockSize(DataSize parquetMaxReadCombinedBlockSize)
+    {
+        this.parquetMaxReadCombinedBlockSize = parquetMaxReadCombinedBlockSize;
         return this;
     }
 

@@ -62,7 +62,8 @@ import static com.facebook.presto.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static com.facebook.presto.hive.HiveErrorCode.HIVE_BAD_DATA;
 import static com.facebook.presto.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
 import static com.facebook.presto.hive.HiveErrorCode.HIVE_MISSING_DATA;
-import static com.facebook.presto.hive.HiveSessionProperties.getParquetMaxReadBlockSize;
+import static com.facebook.presto.hive.HiveSessionProperties.getParquetMaxReadCombinedBlockSize;
+import static com.facebook.presto.hive.HiveSessionProperties.getParquetMaxReadPrimitiveBlockSize;
 import static com.facebook.presto.hive.HiveSessionProperties.isFailOnCorruptedParquetStatistics;
 import static com.facebook.presto.hive.HiveSessionProperties.isUseParquetColumnNames;
 import static com.facebook.presto.hive.HiveUtil.getDeserializerClassName;
@@ -128,7 +129,8 @@ public class ParquetPageSourceFactory
                 columns,
                 isUseParquetColumnNames(session),
                 isFailOnCorruptedParquetStatistics(session),
-                getParquetMaxReadBlockSize(session),
+                getParquetMaxReadPrimitiveBlockSize(session),
+                getParquetMaxReadCombinedBlockSize(session),
                 typeManager,
                 effectivePredicate,
                 stats));
@@ -146,7 +148,8 @@ public class ParquetPageSourceFactory
             List<HiveColumnHandle> columns,
             boolean useParquetColumnNames,
             boolean failOnCorruptedParquetStatistics,
-            DataSize maxReadBlockSize,
+            DataSize maxReadPrimitiveBlockSize,
+            DataSize maxReadCombinedBlockSize,
             TypeManager typeManager,
             TupleDomain<HiveColumnHandle> effectivePredicate,
             FileFormatDataSourceStats stats)
@@ -194,7 +197,8 @@ public class ParquetPageSourceFactory
                     blocks.build(),
                     dataSource,
                     systemMemoryContext,
-                    maxReadBlockSize);
+                    maxReadPrimitiveBlockSize,
+                    maxReadCombinedBlockSize);
 
             return new ParquetPageSource(
                     parquetReader,
