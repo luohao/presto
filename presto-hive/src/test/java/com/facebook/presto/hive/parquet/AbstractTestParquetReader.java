@@ -27,6 +27,7 @@ import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Range;
 import com.google.common.primitives.Shorts;
+import io.airlift.units.DataSize;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaHiveDecimalObjectInspector;
@@ -1480,6 +1481,23 @@ public abstract class AbstractTestParquetReader
                 }
             }
         };
+    }
+
+    @Test
+    public void testMaxReadBytes()
+            throws Exception
+    {
+        DataSize maxReadBlockSize = new DataSize(1_000, DataSize.Unit.BYTE);
+        List<List> values = createTestStructs(Collections.nCopies(500, String.join("", Collections.nCopies(33, "test"))));
+        List<String> structFieldNames = asList("stringField");
+        Type structType = RowType.from(asList(field("stringField", VARCHAR)));
+
+        tester.testMaxReadBytes(
+                getStandardStructObjectInspector(structFieldNames, asList(javaStringObjectInspector)),
+                values,
+                values,
+                structType,
+                maxReadBlockSize);
     }
 
     // parquet has excessive logging at INFO level, set them to WARNING
