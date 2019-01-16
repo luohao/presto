@@ -29,7 +29,10 @@ import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordPageSource;
+import com.facebook.presto.spi.block.ArrayBlock;
 import com.facebook.presto.spi.block.Block;
+import com.facebook.presto.spi.block.MapBlock;
+import com.facebook.presto.spi.block.RowBlock;
 import com.facebook.presto.spi.type.ArrayType;
 import com.facebook.presto.spi.type.DateType;
 import com.facebook.presto.spi.type.DecimalType;
@@ -47,6 +50,7 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.sun.corba.se.spi.ior.iiop.MaxStreamFormatVersionComponent;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import org.apache.hadoop.fs.Path;
@@ -82,6 +86,8 @@ import java.util.Properties;
 import java.util.Set;
 
 import static com.facebook.presto.hive.AbstractTestHiveFileFormats.getFieldFromCursor;
+import static com.facebook.presto.hive.HiveSessionProperties.getParquetMaxReadCombinedBlockSize;
+import static com.facebook.presto.hive.HiveSessionProperties.getParquetMaxReadPrimitiveBlockSize;
 import static com.facebook.presto.hive.HiveTestUtils.createTestHdfsEnvironment;
 import static com.facebook.presto.hive.HiveUtil.isArrayType;
 import static com.facebook.presto.hive.HiveUtil.isMapType;
@@ -92,8 +98,10 @@ import static com.facebook.presto.spi.type.VarbinaryType.VARBINARY;
 import static com.facebook.presto.spi.type.Varchars.isVarcharType;
 import static com.google.common.base.Functions.constant;
 import static com.google.common.collect.Iterables.transform;
+import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.succinctBytes;
 import static java.util.Arrays.stream;
+import static java.util.Collections.max;
 import static java.util.Collections.singletonList;
 import static org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory.getStandardStructObjectInspector;
 import static org.testng.Assert.assertEquals;
@@ -204,13 +212,15 @@ public class ParquetTester
     public void testRoundTrip(ObjectInspector objectInspector, Iterable<?> writeValues, Iterable<?> readValues, String columnName, Type type, Optional<MessageType> parquetSchema)
             throws Exception
     {
-        testRoundTrip(singletonList(objectInspector), new Iterable<?>[] {writeValues}, new Iterable<?>[] {readValues}, singletonList(columnName), singletonList(type), parquetSchema, false);
+        testRoundTrip(singletonList(objectInspector), new Iterable<?>[] {writeValues}, new Iterable<?>[] {
+                readValues}, singletonList(columnName), singletonList(type), parquetSchema, false);
     }
 
     public void testSingleLevelArrayRoundTrip(ObjectInspector objectInspector, Iterable<?> writeValues, Iterable<?> readValues, String columnName, Type type, Optional<MessageType> parquetSchema)
             throws Exception
     {
-        testRoundTrip(singletonList(objectInspector), new Iterable<?>[] {writeValues}, new Iterable<?>[] {readValues}, singletonList(columnName), singletonList(type), parquetSchema, true);
+        testRoundTrip(singletonList(objectInspector), new Iterable<?>[] {writeValues}, new Iterable<?>[] {
+                readValues}, singletonList(columnName), singletonList(type), parquetSchema, true);
     }
 
     public void testRoundTrip(List<ObjectInspector> objectInspectors, Iterable<?>[] writeValues, Iterable<?>[] readValues, List<String> columnNames, List<Type> columnTypes, Optional<MessageType> parquetSchema, boolean singleLevelArray)
@@ -289,6 +299,89 @@ public class ParquetTester
         }
     }
 
+    //    public void testRoundTrip(ObjectInspector objectInspector, Iterable<?> writeValues, Iterable<?> readValues, Type type)
+//            throws Exception
+//    {
+//        // just the values
+//        testRoundTripType(singletonList(objectInspector), new Iterable<?>[] {writeValues},
+//                new Iterable<?>[] {readValues}, TEST_COLUMN, singletonList(type), Optional.empty(), false);
+//    }
+
+    //    private void testRoundTripType(List<ObjectInspector> objectInspectors, Iterable<?>[] writeValues, Iterable<?>[] readValues,
+//            List<String> columnNames, List<Type> columnTypes, Optional<MessageType> parquetSchema, boolean singleLevelArray)
+//            throws Exception
+//    {
+//        // forward order
+//        assertRoundTrip(objectInspectors, writeValues, readValues, columnNames, columnTypes, parquetSchema, singleLevelArray);
+//
+//        // reverse order
+//        assertRoundTrip(objectInspectors, reverse(writeValues), reverse(readValues), columnNames, columnTypes, parquetSchema, singleLevelArray);
+//
+//        // forward order with nulls
+//        assertRoundTrip(objectInspectors, insertNullEvery(5, writeValues), insertNullEvery(5, readValues), columnNames, columnTypes, parquetSchema, singleLevelArray);
+//
+//        // reverse order with nulls
+//        assertRoundTrip(objectInspectors, insertNullEvery(5, reverse(writeValues)), insertNullEvery(5, reverse(readValues)), columnNames, columnTypes, parquetSchema, singleLevelArray);
+//    }
+    void testMaxReadBytes(ObjectInspector objectInspector, Iterable<?> writeValues, Iterable<?> readValues, Type type, DataSize maxPrimitiveBlockSize, DataSize maxCombinedBlockSize)
+            throws Exception
+    {
+        assertMaxReadBytes(singletonList(objectInspector), new Iterable<?>[] {writeValues},
+                new Iterable<?>[] {readValues}, TEST_COLUMN, singletonList(type), Optional.empty(), maxPrimitiveBlockSize, maxCombinedBlockSize);
+    }
+
+    void assertMaxReadBytes(List<ObjectInspector> objectInspectors,
+            Iterable<?>[] writeValues,
+            Iterable<?>[] readValues,
+            List<String> columnNames,
+            List<Type> columnTypes,
+            Optional<MessageType> parquetSchema,
+            DataSize maxPrimitiveBlockSize,
+            DataSize maxCombinedBlockSize)
+            throws Exception
+    {
+        WriterVersion version = PARQUET_1_0;
+        CompressionCodecName compressionCodecName = UNCOMPRESSED;
+        HiveClientConfig config = new HiveClientConfig();
+        config.setHiveStorageFormat(HiveStorageFormat.PARQUET)
+                .setUseParquetColumnNames(false)
+                .setParquetMaxReadPrimitiveBlockSize(maxPrimitiveBlockSize)
+                .setParquetMaxReadCombinedBlockSize(maxCombinedBlockSize);
+        ConnectorSession session = new TestingConnectorSession(new HiveSessionProperties(config, new OrcFileWriterConfig(), new ParquetFileWriterConfig()).getSessionProperties());
+
+        try (TempFile tempFile = new TempFile("test", "parquet")) {
+            JobConf jobConf = new JobConf();
+            jobConf.setEnum(COMPRESSION, compressionCodecName);
+            jobConf.setBoolean(ENABLE_DICTIONARY, true);
+            jobConf.setEnum(WRITER_VERSION, version);
+            writeParquetColumn(
+                    jobConf,
+                    tempFile.getFile(),
+                    compressionCodecName,
+                    createTableProperties(columnNames, objectInspectors),
+                    getStandardStructObjectInspector(columnNames, objectInspectors),
+                    getIterators(writeValues),
+                    parquetSchema,
+                    true);
+
+            Iterator<?>[] expectedValues = getIterators(readValues);
+            try (ConnectorPageSource pageSource = getFileFormat().createFileFormatReader(
+                    session,
+                    HDFS_ENVIRONMENT,
+                    tempFile.getFile(),
+                    columnNames,
+                    columnTypes)) {
+                assertPageSource(
+                        columnTypes,
+                        expectedValues,
+                        pageSource,
+                        Optional.of(getParquetMaxReadPrimitiveBlockSize(session).toBytes()),
+                        Optional.of(getParquetMaxReadCombinedBlockSize(session).toBytes()));
+                assertFalse(stream(expectedValues).allMatch(Iterator::hasNext));
+            }
+        }
+    }
+
     private static void assertFileContents(
             ConnectorSession session,
             File dataFile,
@@ -315,10 +408,26 @@ public class ParquetTester
 
     private static void assertPageSource(List<Type> types, Iterator<?>[] valuesByField, ConnectorPageSource pageSource)
     {
+        assertPageSource(types, valuesByField, pageSource, Optional.empty(), Optional.empty());
+    }
+
+    private static void assertPageSource(
+            List<Type> types,
+            Iterator<?>[] valuesByField,
+            ConnectorPageSource pageSource,
+            Optional<Long> maxPrimitiveBlockSize,
+            Optional<Long> maxCombinedBlockSize)
+    {
         Page page;
         while ((page = pageSource.getNextPage()) != null) {
+            if (maxCombinedBlockSize.isPresent()) {
+                assertTrue(page.getPositionCount() == 1 || page.getSizeInBytes() <= maxCombinedBlockSize.get());
+            }
             for (int field = 0; field < page.getChannelCount(); field++) {
                 Block block = page.getBlock(field);
+                if (maxPrimitiveBlockSize.isPresent()) {
+                    assertTrue(block.getPositionCount() == 1 || block.getSizeInBytes() <= maxPrimitiveBlockSize.get());
+                }
                 for (int i = 0; i < block.getPositionCount(); i++) {
                     assertTrue(valuesByField[field].hasNext());
                     Object expected = valuesByField[field].next();
@@ -326,6 +435,21 @@ public class ParquetTester
                     assertEquals(actual, expected);
                 }
             }
+        }
+    }
+
+    private static void assertPrimitiveBlockSize(Block block, long maxBlockSizeInBytes)
+    {
+        if (block instanceof RowBlock) {
+            RowBlock rowBlock = (RowBlock) block;
+            rowBlock.getRawFieldBlocks();
+        }
+        else if (block instanceof MapBlock) {
+
+        } else if (block instanceof ArrayBlock) {
+
+        } else {
+            assertTrue(block.getSizeInBytes() <= maxBlockSizeInBytes);
         }
     }
 

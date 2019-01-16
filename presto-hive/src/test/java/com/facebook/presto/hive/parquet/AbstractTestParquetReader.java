@@ -25,8 +25,10 @@ import com.google.common.collect.AbstractSequentialIterator;
 import com.google.common.collect.ContiguousSet;
 import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import com.google.common.primitives.Shorts;
+import io.airlift.units.DataSize;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaHiveDecimalObjectInspector;
@@ -50,6 +52,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -57,6 +60,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.hive.parquet.ParquetTester.HIVE_STORAGE_TIME_ZONE;
@@ -1454,6 +1458,85 @@ public abstract class AbstractTestParquetReader
             throws Exception
     {
         tester.testRoundTrip(javaByteArrayObjectInspector, limit(cycle(new byte[0]), 30_000), AbstractTestParquetReader::byteArrayToVarbinary, VARBINARY);
+    }
+
+//    @Test
+//    public void testMaxReadBytes()
+//    {
+//
+//
+//    }
+    //    @Test
+//    public void testStruct()
+//            throws Exception
+//    {
+//        List<List> values = createTestStructs(transform(intsBetween(0, 31_234), Object::toString), longsBetween(0, 31_234));
+//        List<String> structFieldNames = asList("stringField", "longField");
+//        Type structType = RowType.from(asList(field("stringField", VARCHAR), field("longField", BIGINT)));
+//        tester.testRoundTrip(getStandardStructObjectInspector(structFieldNames, asList(javaStringObjectInspector, javaLongObjectInspector)), values, values, structType);
+//    }
+    @Test
+    public void testMaxReadBytes()
+            throws Exception
+    {
+//        List<List> values = createTestStructs(transform(intsBetween(0, 9), Object::toString), longsBetween(0, 31_234));
+//        List<String> structFieldNames = asList("stringField", "longField");
+//        Type structType = RowType.from(asList(field("stringField", VARCHAR), field("longField", BIGINT)));
+////        tester.testRoundTrip(getStandardStructObjectInspector(structFieldNames, asList(javaStringObjectInspector, javaLongObjectInspector)), values, values, structType);
+//        tester.testMaxReadBytes(getStandardStructObjectInspector(structFieldNames, asList(javaStringObjectInspector, javaLongObjectInspector)), values, values, structType);
+
+        DataSize maxPrimitiveBlockSize = new DataSize(1_000, DataSize.Unit.BYTE);
+        DataSize maxCombinedBlockSize = new DataSize(4_000, DataSize.Unit.BYTE);
+
+        for (int numColumn = 1; numColumn < 128; numColumn = numColumn * 2) {
+            // prepare the data
+//            List<RowType.Field> fields;
+//            List<List> values = new ArrayList<>();
+//            List<String> structFieldNames = new ArrayList<>();
+//            IntStream.range(0, numColumn).forEach(x -> {
+//                List<String> value =
+//                values.add(ImmutableList.of(new String("aaaabbbbccccdddd")));
+//                structFieldNames.add("col_" + Integer.toString(x));
+//
+//            });
+
+//            List<List> structs = new ArrayList<>();
+//            List<Iterator> iterators = Arrays.stream(values).map(Iterable::iterator).collect(Collectors.toList());
+//            iterators.forEach(iter -> checkArgument(iter.hasNext(), "struct field values cannot be empty"));
+//            while (iterators.stream().allMatch(Iterator::hasNext)) {
+//                structs.add(iterators.stream().map(Iterator::next).collect(Collectors.toList()));
+//            }
+//            return structs;
+//            List<List> values = Collections.nCopies(numColumn, intsBetween(10_000, 99_999).stream().map(x -> x.toString()).collect(Collectors.toList()));
+//            List<String> structFieldNames = IntStream.range(0, numColumn).mapToObj(x -> "col_" + Integer.toString(x)).collect(Collectors.toList());
+//            Type structType = RowType.from(asList(field("stringField", VARCHAR), field("longField", BIGINT)));
+//            Type structType = RowType.from(structFieldNames.stream().map(x -> field(x, VARCHAR)).collect(Collectors.toList()));
+
+//
+//            tester.testMaxReadBytes(
+//                    getStandardStructObjectInspector(structFieldNames, Collections.nCopies(numColumn, javaStringObjectInspector)),
+//                    values,
+//                    values,
+//                    structType,
+//                    maxPrimitiveBlockSize,
+//                    maxCombinedBlockSize);
+
+            List<List> values = createTestStructs(Collections.nCopies(3000, String.join("", Collections.nCopies(33, "test"))));
+            List<String> structFieldNames = asList("stringField");
+            Type structType = RowType.from(asList(field("stringField", VARCHAR)));
+//            tester.testRoundTrip(getStandardStructObjectInspector(structFieldNames, Collections.nCopies(numColumn, javaStringObjectInspector)),
+//                    values,
+//                    values,
+//                    structType);
+
+            tester.testMaxReadBytes(
+                    getStandardStructObjectInspector(structFieldNames, Collections.nCopies(numColumn, javaStringObjectInspector)),
+                    values,
+                    values,
+                    structType,
+                    maxPrimitiveBlockSize,
+                    maxCombinedBlockSize);
+        }
     }
 
     private static <T> Iterable<T> skipEvery(int n, Iterable<T> iterable)

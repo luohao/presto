@@ -278,6 +278,9 @@ public class ParquetReader
     {
         Block block = readColumnChunk(field).getBlock();
         // update maxBatchSize
+        maxCombinedBytesPerRow = max(maxCombinedBytesPerRow, block.getSizeInBytes() / batchSize);
+        maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxCombinedBlockBytes / maxCombinedBytesPerRow)));
+
         log.info("readBlock: " + block.getSizeInBytes());
         return block;
     }
