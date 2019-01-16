@@ -1484,20 +1484,41 @@ public abstract class AbstractTestParquetReader
     }
 
     @Test
-    public void testMaxReadBytes()
+    public void testStructMaxReadBytes()
             throws Exception
     {
         DataSize maxReadBlockSize = new DataSize(1_000, DataSize.Unit.BYTE);
-        List<List> values = createTestStructs(Collections.nCopies(500, String.join("", Collections.nCopies(33, "test"))));
-        List<String> structFieldNames = asList("stringField");
-        Type structType = RowType.from(asList(field("stringField", VARCHAR)));
+        List<List> structValues = createTestStructs(
+                Collections.nCopies(500, String.join("", Collections.nCopies(33, "test"))),
+                Collections.nCopies(500, String.join("", Collections.nCopies(1, "test"))));
+        List<String> structFieldNames = asList("a", "b");
+        Type structType = RowType.from(asList(field("a", VARCHAR), field("b", VARCHAR)));
 
         tester.testMaxReadBytes(
-                getStandardStructObjectInspector(structFieldNames, asList(javaStringObjectInspector)),
-                values,
-                values,
+                getStandardStructObjectInspector(structFieldNames, asList(javaStringObjectInspector, javaStringObjectInspector)),
+                structValues,
+                structValues,
                 structType,
                 maxReadBlockSize);
+    }
+
+    @Test
+    public void testArrayMaxReadBytes()
+            throws Exception
+    {
+        DataSize maxReadBlockSize = new DataSize(1_000, DataSize.Unit.BYTE);
+        Iterable<List<Integer>> values = createFixedTestArrays(limit(cycle(asList(1, null, 3, 5, null, null, null, 7, 11, null, 13, 17)), 30_000));
+        tester.testMaxReadBytes(getStandardListObjectInspector(javaIntObjectInspector), values, values, new ArrayType(INTEGER), maxReadBlockSize);
+        //tester.testRoundTrip(getStandardListObjectInspector(javaIntObjectInspector), values, values, new ArrayType(INTEGER));
+    }
+
+    @Test
+    public void testMapMaxReadBytes()
+            throws Exception
+    {
+        DataSize maxReadBlockSize = new DataSize(1_000, DataSize.Unit.BYTE);
+        Iterable<Map<String, Long>> values = createFixedTestMaps(Collections.nCopies(5_000, String.join("", Collections.nCopies(33, "test"))), longsBetween(0, 5_000));
+        tester.testMaxReadBytes(getStandardMapObjectInspector(javaStringObjectInspector, javaLongObjectInspector), values, values, mapType(VARCHAR, BIGINT), maxReadBlockSize);
     }
 
     // parquet has excessive logging at INFO level, set them to WARNING
@@ -1627,6 +1648,47 @@ public abstract class AbstractTestParquetReader
     private <T> Iterable<List<T>> createNullableTestArrays(Iterable<T> values)
     {
         return insertNullEvery(ThreadLocalRandom.current().nextInt(2, 5), createTestArrays(values));
+    }
+
+    private <T> List<List<T>> createFixedTestArrays(Iterable<T> values)
+    {
+        List<List<T>> arrays = new ArrayList<>();
+        Iterator<T> valuesIter = values.iterator();
+        List<T> array = new ArrayList<>();
+        int count = 1;
+        while (valuesIter.hasNext()) {
+            if (count % 10 == 0) {
+                arrays.add(array);
+                array = new ArrayList<>();
+            }
+            if (count % 20 == 0) {
+                arrays.add(Collections.emptyList());
+            }
+            array.add(valuesIter.next());
+            ++count;
+        }
+        return arrays;
+    }
+
+    private <K, V> Iterable<Map<K, V>> createFixedTestMaps(Iterable<K> keys, Iterable<V> values)
+    {
+        List<Map<K, V>> maps = new ArrayList<>();
+        Iterator<K> keysIterator = keys.iterator();
+        Iterator<V> valuesIterator = values.iterator();
+        Map<K, V> map = new HashMap<>();
+        int count = 1;
+        while (keysIterator.hasNext() && valuesIterator.hasNext()) {
+            if (count % 5 == 0) {
+                maps.add(map);
+                map = new HashMap<>();
+            }
+            if (count % 10 == 0) {
+                maps.add(Collections.emptyMap());
+            }
+            map.put(keysIterator.next(), valuesIterator.next());
+            ++count;
+        }
+        return maps;
     }
 
     private <K, V> Iterable<Map<K, V>> createTestMaps(Iterable<K> keys, Iterable<V> values)

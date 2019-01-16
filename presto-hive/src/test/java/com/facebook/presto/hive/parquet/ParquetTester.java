@@ -329,7 +329,7 @@ public class ParquetTester
                     getStandardStructObjectInspector(columnNames, objectInspectors),
                     getIterators(writeValues),
                     parquetSchema,
-                    true);
+                    false);
 
             Iterator<?>[] expectedValues = getIterators(readValues);
             try (ConnectorPageSource pageSource = getFileFormat().createFileFormatReader(
