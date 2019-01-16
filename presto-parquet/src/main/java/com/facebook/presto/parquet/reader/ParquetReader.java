@@ -79,7 +79,8 @@ public class ParquetReader
     private int batchSize;
     private int nextBatchSize = INITIAL_BATCH_SIZE;
     private final PrimitiveColumnReader[] columnReaders;
-    private long maxBytesPerPrimitiveColumnChunk;
+    private long[] maxBytesPerCell;
+    private long maxCombinedBytesPerRow;
     private final long maxBlockBytes;
     private int maxBatchSize = MAX_VECTOR_LENGTH;
 
@@ -98,6 +99,7 @@ public class ParquetReader
         this.maxBlockBytes = requireNonNull(maxBlockSize, "maxBlockSize is null").toBytes();
         columns = messageColumnIO.getLeaves();
         columnReaders = new PrimitiveColumnReader[columns.size()];
+        maxBytesPerCell = new long[columns.size()];
     }
 
     @Override
@@ -211,7 +213,8 @@ public class ParquetReader
             throws IOException
     {
         ColumnDescriptor columnDescriptor = field.getDescriptor();
-        PrimitiveColumnReader columnReader = columnReaders[field.getId()];
+        int fieldId = field.getId();
+        PrimitiveColumnReader columnReader = columnReaders[fieldId];
         if (columnReader.getPageReader() == null) {
             validateParquet(currentBlockMetadata.getRowCount() > 0, "Row group has 0 rows");
             ColumnChunkMetaData metadata = getColumnChunkMetaData(columnDescriptor);
@@ -226,9 +229,14 @@ public class ParquetReader
         ColumnChunk columnChunk = columnReader.readPrimitive(field);
 
         // update max size per primitive column chunk
-        maxBytesPerPrimitiveColumnChunk = toIntExact(max(maxBytesPerPrimitiveColumnChunk, columnChunk.getBlock().getSizeInBytes() / batchSize));
-        maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxBlockBytes / maxBytesPerPrimitiveColumnChunk)));
-
+        long bytesPerCell = columnChunk.getBlock().getSizeInBytes() / batchSize;
+        if (maxBytesPerCell[fieldId] < bytesPerCell) {
+            // update batch size
+            maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxBlockBytes / bytesPerCell)));
+            maxCombinedBytesPerRow = maxCombinedBytesPerRow - maxBytesPerCell[fieldId] + bytesPerCell;
+            maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxBlockBytes / maxCombinedBytesPerRow)));
+            maxBytesPerCell[fieldId] = bytesPerCell;
+        }
         log.info("readPrimitive: " + columnChunk.getBlock().getSizeInBytes() + " bytes");
         return columnChunk;
     }
@@ -265,7 +273,6 @@ public class ParquetReader
             throws IOException
     {
         Block block = readColumnChunk(field).getBlock();
-        // update maxBatchSize
         log.info("readBlock: " + block.getSizeInBytes());
         return block;
     }
@@ -299,8 +306,8 @@ public class ParquetReader
         return systemMemoryContext;
     }
 
-    public long getMaxBytesPerPrimitiveColumnChunk()
+    public long getMaxCombinedBytesPerRow()
     {
-        return maxBytesPerPrimitiveColumnChunk;
+        return maxCombinedBytesPerRow;
     }
 }
