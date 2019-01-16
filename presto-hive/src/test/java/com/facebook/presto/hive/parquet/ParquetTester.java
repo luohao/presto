@@ -82,6 +82,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import static com.facebook.presto.hive.AbstractTestHiveFileFormats.getFieldFromCursor;
+import static com.facebook.presto.hive.HiveSessionProperties.getParquetMaxReadBlockSize;
 import static com.facebook.presto.hive.HiveTestUtils.createTestHdfsEnvironment;
 import static com.facebook.presto.hive.HiveUtil.isArrayType;
 import static com.facebook.presto.hive.HiveUtil.isMapType;
@@ -107,7 +108,6 @@ import static parquet.hadoop.metadata.CompressionCodecName.GZIP;
 import static parquet.hadoop.metadata.CompressionCodecName.LZO;
 import static parquet.hadoop.metadata.CompressionCodecName.SNAPPY;
 import static parquet.hadoop.metadata.CompressionCodecName.UNCOMPRESSED;
-import static com.facebook.presto.hive.HiveSessionProperties.getParquetMaxReadBlockSize;
 
 public class ParquetTester
 {
