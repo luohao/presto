@@ -28,7 +28,6 @@ import com.facebook.presto.spi.block.RunLengthEncodedBlock;
 import com.facebook.presto.spi.type.MapType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeSignatureParameter;
-import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
 import it.unimi.dsi.fastutil.booleans.BooleanList;
@@ -61,7 +60,6 @@ import static java.util.Objects.requireNonNull;
 public class ParquetReader
         implements Closeable
 {
-    private static final Logger log = Logger.get(ParquetReader.class);
     private static final int MAX_VECTOR_LENGTH = 1024;
     private static final int INITIAL_BATCH_SIZE = 1;
     private static final int BATCH_SIZE_GROWTH_FACTOR = 2;
@@ -81,7 +79,7 @@ public class ParquetReader
     private final PrimitiveColumnReader[] columnReaders;
     private long[] maxBytesPerCell;
     private long maxCombinedBytesPerRow;
-    private final long maxBlockBytes;
+    private final long maxReadBlockBytes;
     private int maxBatchSize = MAX_VECTOR_LENGTH;
 
     private AggregatedMemoryContext currentRowGroupMemoryContext;
@@ -90,13 +88,13 @@ public class ParquetReader
             List<BlockMetaData> blocks,
             ParquetDataSource dataSource,
             AggregatedMemoryContext systemMemoryContext,
-            DataSize maxBlockSize)
+            DataSize maxReadBlockSize)
     {
         this.blocks = blocks;
         this.dataSource = requireNonNull(dataSource, "dataSource is null");
         this.systemMemoryContext = requireNonNull(systemMemoryContext, "systemMemoryContext is null");
         this.currentRowGroupMemoryContext = systemMemoryContext.newAggregatedMemoryContext();
-        this.maxBlockBytes = requireNonNull(maxBlockSize, "maxBlockSize is null").toBytes();
+        this.maxReadBlockBytes = requireNonNull(maxReadBlockSize, "maxReadBlockSize is null").toBytes();
         columns = messageColumnIO.getLeaves();
         columnReaders = new PrimitiveColumnReader[columns.size()];
         maxBytesPerCell = new long[columns.size()];
@@ -120,7 +118,6 @@ public class ParquetReader
         if (nextRowInGroup >= currentGroupRowCount && !advanceToNextRowGroup()) {
             return -1;
         }
-        //batchSize = toIntExact(min(maxBatchSize, currentGroupRowCount - nextRowInGroup));
 
         batchSize = toIntExact(min(nextBatchSize, maxBatchSize));
         nextBatchSize = min(batchSize * BATCH_SIZE_GROWTH_FACTOR, MAX_VECTOR_LENGTH);
@@ -130,8 +127,6 @@ public class ParquetReader
         currentPosition += batchSize;
         Arrays.stream(columnReaders)
                 .forEach(reader -> reader.prepareNextRead(batchSize));
-
-        log.info("nextBatch: maxBatchSize=" + maxBatchSize + ", batchSize=" + batchSize);
         return batchSize;
     }
 
@@ -232,19 +227,17 @@ public class ParquetReader
         long bytesPerCell = columnChunk.getBlock().getSizeInBytes() / batchSize;
         if (maxBytesPerCell[fieldId] < bytesPerCell) {
             // update batch size
-            maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxBlockBytes / bytesPerCell)));
+            maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxReadBlockBytes / bytesPerCell)));
             maxCombinedBytesPerRow = maxCombinedBytesPerRow - maxBytesPerCell[fieldId] + bytesPerCell;
-            maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxBlockBytes / maxCombinedBytesPerRow)));
+            maxBatchSize = toIntExact(min(maxBatchSize, max(1, maxReadBlockBytes / maxCombinedBytesPerRow)));
             maxBytesPerCell[fieldId] = bytesPerCell;
         }
-        log.info("readPrimitive: " + columnChunk.getBlock().getSizeInBytes() + " bytes");
         return columnChunk;
     }
 
     private byte[] allocateBlock(int length)
     {
         byte[] buffer = new byte[length];
-        log.info("allocateBlock: " + length + " bytes");
         LocalMemoryContext blockMemoryContext = currentRowGroupMemoryContext.newLocalMemoryContext(ParquetReader.class.getSimpleName());
         blockMemoryContext.setBytes(buffer.length);
         return buffer;
@@ -273,7 +266,6 @@ public class ParquetReader
             throws IOException
     {
         Block block = readColumnChunk(field).getBlock();
-        log.info("readBlock: " + block.getSizeInBytes());
         return block;
     }
 
