@@ -141,8 +141,8 @@ public class BqStreamer
         queryContext.getRemoteClientAddress().ifPresent(x -> rowContent.put("remote_client_address", x));
         queryContext.getUserAgent().ifPresent(x -> rowContent.put("user_gent", x));
         queryContext.getClientInfo().ifPresent(x -> rowContent.put("client_info", x));
-        rowContent.put("client_tags", queryContext.getClientTags().stream().collect(toList());
-        rowContent.put("client_capabilities", queryContext.getClientCapabilities().stream().collect(toList());
+        rowContent.put("client_tags", queryContext.getClientTags().stream().collect(toList()));
+        rowContent.put("client_capabilities", queryContext.getClientCapabilities().stream().collect(toList()));
         queryContext.getSource().ifPresent(x -> rowContent.put("source", x));
         queryContext.getCatalog().ifPresent(x -> rowContent.put("catalog", x));
         queryContext.getSchema().ifPresent(x -> rowContent.put("schema_", x));
