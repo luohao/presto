@@ -1,3 +1,16 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.twitter.presto.plugin.eventlistener.bq;
 
 import com.facebook.presto.spi.eventlistener.QueryCompletedEvent;
@@ -23,9 +36,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.twitter.presto.plugin.eventlistener.bq.MetadataUtils.mapToJson;
-import static com.twitter.presto.plugin.eventlistener.bq.MetadataUtils.queryOutputMetadataToJson;
-import static com.twitter.presto.plugin.eventlistener.bq.MetadataUtils.resourceEstimatesToJson;
+import static com.twitter.presto.plugin.eventlistener.bq.MetadataHelper.mapToJson;
+import static com.twitter.presto.plugin.eventlistener.bq.MetadataHelper.queryOutputMetadataToJson;
+import static com.twitter.presto.plugin.eventlistener.bq.MetadataHelper.resourceEstimatesToJson;
 import static java.util.stream.Collectors.toList;
 
 public class BqStreamer
@@ -101,10 +114,10 @@ public class BqStreamer
         rowContent.put("written_bytes", queryStatistics.getWrittenBytes());
         rowContent.put("written_rows", queryStatistics.getWrittenRows());
         rowContent.put("cumulative_memory_bytesecond", queryStatistics.getCumulativeMemory());
-        rowContent.put("stage_gc_statistics", queryStatistics.getStageGcStatistics().stream().map(MetadataUtils::stageGcStatisticsToJson).collect(toList()));
+        rowContent.put("stage_gc_statistics", queryStatistics.getStageGcStatistics().stream().map(MetadataHelper::stageGcStatisticsToJson).collect(toList()));
         rowContent.put("splits", queryStatistics.getCompletedSplits());
         rowContent.put("complete", queryStatistics.isComplete());
-        rowContent.put("cpu_time_distribution", queryStatistics.getCpuTimeDistribution().stream().map(MetadataUtils::stageCpuDistributionToJson).collect(toList()));
+        rowContent.put("cpu_time_distribution", queryStatistics.getCpuTimeDistribution().stream().map(MetadataHelper::stageCpuDistributionToJson).collect(toList()));
         rowContent.put("operator_summaries", queryStatistics.getOperatorSummaries());
 
         // QueryContext
@@ -128,7 +141,7 @@ public class BqStreamer
 
         // QueryIOMetadata
         QueryIOMetadata queryIOMetadata = queryCompletedEvent.getIoMetadata();
-        rowContent.put("io_inputs_metadata_json", queryIOMetadata.getInputs().stream().map(MetadataUtils::queryInputMetadataToJson).collect(Collectors.toList()));
+        rowContent.put("io_inputs_metadata_json", queryIOMetadata.getInputs().stream().map(MetadataHelper::queryInputMetadataToJson).collect(Collectors.toList()));
         queryIOMetadata.getOutput().ifPresent(x -> rowContent.put("io_output_metadata_json", queryOutputMetadataToJson(x)));
 
         // QueryFailureInfo
