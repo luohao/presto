@@ -2,6 +2,7 @@ package com.twitter.presto.plugin.eventlistener.bq;
 
 import com.facebook.presto.spi.eventlistener.QueryCompletedEvent;
 import com.facebook.presto.spi.eventlistener.QueryContext;
+import com.facebook.presto.spi.eventlistener.QueryIOMetadata;
 import com.facebook.presto.spi.eventlistener.QueryMetadata;
 import com.facebook.presto.spi.eventlistener.QueryStatistics;
 import com.google.cloud.bigquery.BigQuery;
@@ -19,10 +20,13 @@ import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static java.util.stream.Collectors.toList;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.twitter.presto.plugin.eventlistener.bq.MetadataUtils.mapToJson;
+import static com.twitter.presto.plugin.eventlistener.bq.MetadataUtils.queryOutputMetadataToJson;
+import static com.twitter.presto.plugin.eventlistener.bq.MetadataUtils.resourceEstimatesToJson;
+import static java.util.stream.Collectors.toList;
 
 public class BqStreamer
         implements TwitterEventHandler
@@ -97,41 +101,10 @@ public class BqStreamer
         rowContent.put("written_bytes", queryStatistics.getWrittenBytes());
         rowContent.put("written_rows", queryStatistics.getWrittenRows());
         rowContent.put("cumulative_memory_bytesecond", queryStatistics.getCumulativeMemory());
-        rowContent.put("stage_gc_statistics",
-                queryStatistics.getStageGcStatistics().stream()
-                        .map(x -> {
-                            Map<String, Object> gcStat = new HashMap<>();
-                            gcStat.put("stage_id", x.getStageId());
-                            gcStat.put("tasks", x.getTasks());
-                            gcStat.put("full_gc_tasks", x.getFullGcTasks());
-                            gcStat.put("min_full_gc_sec", x.getMinFullGcSec());
-                            gcStat.put("max_full_gc_sec", x.getMaxFullGcSec());
-                            gcStat.put("total_full_gc_sec", x.getTotalFullGcSec());
-                            gcStat.put("average_full_gc_sec", x.getAverageFullGcSec());
-                            return gcStat;
-                        }).collect(toList())
-        );
+        rowContent.put("stage_gc_statistics", queryStatistics.getStageGcStatistics().stream().map(MetadataUtils::stageGcStatisticsToJson).collect(toList()));
         rowContent.put("splits", queryStatistics.getCompletedSplits());
         rowContent.put("complete", queryStatistics.isComplete());
-        rowContent.put("cpu_time_distribution",
-                queryStatistics.getCpuTimeDistribution().stream()
-                        .map(x -> {
-                            Map<String, Object> cpuDist = new HashMap<>();
-                            cpuDist.put("stage_id", x.getStageId());
-                            cpuDist.put("tasks", x.getTasks());
-                            cpuDist.put("p25", x.getP25());
-                            cpuDist.put("p50", x.getP50());
-                            cpuDist.put("p75", x.getP75());
-                            cpuDist.put("p90", x.getP90());
-                            cpuDist.put("p95", x.getP95());
-                            cpuDist.put("p99", x.getP99());
-                            cpuDist.put("min_", x.getMin());
-                            cpuDist.put("max_", x.getMax());
-                            cpuDist.put("total_", x.getTotal());
-                            cpuDist.put("average_", x.getAverage());
-
-                            return cpuDist;
-                        }).collect(toList()));
+        rowContent.put("cpu_time_distribution", queryStatistics.getCpuTimeDistribution().stream().map(MetadataUtils::stageCpuDistributionToJson).collect(toList()));
         rowContent.put("operator_summaries", queryStatistics.getOperatorSummaries());
 
         // QueryContext
@@ -147,10 +120,29 @@ public class BqStreamer
         queryContext.getCatalog().ifPresent(x -> rowContent.put("catalog", x));
         queryContext.getSchema().ifPresent(x -> rowContent.put("schema_", x));
         queryContext.getResourceGroupId().ifPresent(x -> rowContent.put("resource_group_id_segments", x.getSegments()));
+        rowContent.put("session_properties_json", mapToJson(queryContext.getSessionProperties()));
+        rowContent.put("resource_estimates_json", resourceEstimatesToJson(queryContext.getResourceEstimates()));
+        rowContent.put("server_address", queryContext.getServerAddress());
+        rowContent.put("server_version", queryContext.getServerVersion());
+        rowContent.put("environment", queryContext.getEnvironment());
 
         // QueryIOMetadata
+        QueryIOMetadata queryIOMetadata = queryCompletedEvent.getIoMetadata();
+        rowContent.put("io_inputs_metadata_json", queryIOMetadata.getInputs().stream().map(MetadataUtils::queryInputMetadataToJson).collect(Collectors.toList()));
+        queryIOMetadata.getOutput().ifPresent(x -> rowContent.put("io_output_metadata_json", queryOutputMetadataToJson(x)));
 
         // QueryFailureInfo
+        queryCompletedEvent.getFailureInfo().ifPresent(
+                failureInfo -> {
+                    rowContent.put("error_code_id", failureInfo.getErrorCode().getCode());
+                    rowContent.put("error_code_name", failureInfo.getErrorCode().getName());
+                    rowContent.put("error_code_type", failureInfo.getErrorCode().getType());
+                    failureInfo.getFailureType().ifPresent(x -> rowContent.put("failure_type", x));
+                    failureInfo.getFailureMessage().ifPresent(x -> rowContent.put("failure_message", x));
+                    failureInfo.getFailureTask().ifPresent(x -> rowContent.put("failure_task", x));
+                    failureInfo.getFailureHost().ifPresent(x -> rowContent.put("failure_host", x));
+                    rowContent.put("failures_json", failureInfo.getFailuresJson());
+                });
 
         return rowContent;
     }

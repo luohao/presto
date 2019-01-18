@@ -120,6 +120,7 @@
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-bigquery</artifactId>
             <version>1.55.0</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- for testing -->
