@@ -15,15 +15,16 @@ package com.facebook.presto.twitter.hive.security;
 
 import org.apache.hadoop.conf.Configuration;
 
+import static com.facebook.presto.twitter.hive.security.DirectTokenProvider.GCS_ACCESS_KEY_CONF;
+
 public class GcsConfigurationUpdater
 {
     private GcsConfigurationUpdater() {}
 
     // FIXME: as of now, GCS connector still doens't allow token for service account
-    public static final String GCS_ACCESS_KEY_CONF = "fs.gs.auth.service.account.token";
-
     public static void updateConfiguration(Configuration config, String token)
     {
+        config.set("fs.gs.auth.access.token.provider.impl", DirectTokenProvider.class.getName());
         config.set(GCS_ACCESS_KEY_CONF, token);
     }
 }

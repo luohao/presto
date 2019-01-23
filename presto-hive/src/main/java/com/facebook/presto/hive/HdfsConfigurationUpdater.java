@@ -139,6 +139,10 @@ public class HdfsConfigurationUpdater
         configureCompression(config, compressionCodec);
 
         s3ConfigurationUpdater.updateConfiguration(config);
+
+        config.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+        config.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+        config.set("google.cloud.auth.service.account.enable", "false");
     }
 
     public static void configureCompression(Configuration config, HiveCompressionCodec compressionCodec)

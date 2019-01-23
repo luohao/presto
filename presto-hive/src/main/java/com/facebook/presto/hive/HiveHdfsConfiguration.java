@@ -24,6 +24,7 @@ import java.net.URI;
 
 import static com.facebook.presto.hive.util.ConfigurationUtils.copy;
 import static com.facebook.presto.hive.util.ConfigurationUtils.getInitialConfiguration;
+import static com.facebook.presto.twitter.hive.security.DirectTokenProvider.GCS_ACCESS_KEY_CONF;
 import static java.util.Objects.requireNonNull;
 
 public class HiveHdfsConfiguration
@@ -59,7 +60,7 @@ public class HiveHdfsConfiguration
         copy(hadoopConfiguration.get(), config);
         context.getIdentity().getPrincipal().ifPresent(x -> {
             if (x instanceof CredentialBearerPrincipal) {
-                ((CredentialBearerPrincipal) x).getCredential(GcsConfigurationUpdater.GCS_ACCESS_KEY_CONF)
+                ((CredentialBearerPrincipal) x).getCredential(GCS_ACCESS_KEY_CONF)
                         .ifPresent(t -> GcsConfigurationUpdater.updateConfiguration(config, t));
             }
         });
