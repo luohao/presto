@@ -25,6 +25,7 @@ import com.facebook.presto.spi.Constraint;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
+import com.google.common.collect.ImmutableList;
 
 import java.util.List;
 import java.util.Map;
@@ -36,10 +37,13 @@ import static java.lang.String.format;
 public class DruidMetadata
         implements ConnectorMetadata
 {
+    private static final String DRUID_SCHEMA = "druid";
+
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
-        throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
+        // According to Druid SQL specification, all datasources will be in druid schema
+        return ImmutableList.of(DRUID_SCHEMA);
     }
 
     @Override

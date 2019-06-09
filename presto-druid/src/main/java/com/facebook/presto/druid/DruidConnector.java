@@ -24,7 +24,7 @@ import io.airlift.log.Logger;
 
 import javax.inject.Inject;
 
-import static java.lang.String.format;
+import static com.facebook.presto.druid.DruidTransactionHandle.INSTANCE;
 import static java.util.Objects.requireNonNull;
 
 public class DruidConnector
@@ -53,7 +53,7 @@ public class DruidConnector
     @Override
     public ConnectorTransactionHandle beginTransaction(IsolationLevel isolationLevel, boolean readOnly)
     {
-        throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
+        return INSTANCE;
     }
 
     @Override
