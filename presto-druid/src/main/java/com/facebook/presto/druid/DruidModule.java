@@ -18,6 +18,8 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static java.util.Objects.requireNonNull;
 
 public class DruidModule
@@ -35,6 +37,9 @@ public class DruidModule
     @Override
     public void configure(Binder binder)
     {
+        httpClientBinder(binder).bindHttpClient("druid-client", ForDruidClient.class);
+        configBinder(binder).bindConfig(DruidConfig.class);
+
         binder.bind(TypeManager.class).toInstance(typeManager);
 
         binder.bind(DruidConnector.class).in(Scopes.SINGLETON);
@@ -43,5 +48,6 @@ public class DruidModule
         binder.bind(DruidSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(DruidHandleResolver.class).in(Scopes.SINGLETON);
         binder.bind(DruidRecordSetProvider.class).in(Scopes.SINGLETON);
+        binder.bind(DruidClient.class).in(Scopes.SINGLETON);
     }
 }

@@ -27,23 +27,43 @@ import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.google.common.collect.ImmutableList;
 
+import javax.inject.Inject;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 public class DruidMetadata
         implements ConnectorMetadata
 {
     private static final String DRUID_SCHEMA = "druid";
 
+    private final DruidClient druidClient;
+
+    @Inject
+    public DruidMetadata(DruidClient druidClient)
+    {
+        this.druidClient = requireNonNull(druidClient, "druidClient is null");
+    }
+
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
         // According to Druid SQL specification, all datasources will be in druid schema
         return ImmutableList.of(DRUID_SCHEMA);
+    }
+
+    @Override
+    public List<SchemaTableName> listTables(ConnectorSession session, Optional<String> schemaName)
+    {
+        return druidClient.getDataSources(true).stream()
+                .map(datasource -> new SchemaTableName(DRUID_SCHEMA, datasource))
+                .collect(toImmutableList());
     }
 
     @Override
