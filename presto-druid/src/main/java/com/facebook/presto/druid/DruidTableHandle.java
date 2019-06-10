@@ -14,8 +14,76 @@
 package com.facebook.presto.druid;
 
 import com.facebook.presto.spi.ConnectorTableHandle;
+import com.facebook.presto.spi.SchemaTableName;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Joiner;
+
+import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
 
 public class DruidTableHandle
         implements ConnectorTableHandle
 {
+    private final String schemaName;
+    private final String tableName;
+
+    @JsonCreator
+    public DruidTableHandle(
+            @JsonProperty("schemaName") String schemaName,
+            @JsonProperty("tableName") String tableName)
+    {
+        this.schemaName = requireNonNull(schemaName, "schemaName is null");
+        this.tableName = requireNonNull(tableName, "tableName is null");
+    }
+
+    @JsonProperty
+    public String getSchemaName()
+    {
+        return schemaName;
+    }
+
+    @JsonProperty
+    public String getTableName()
+    {
+        return tableName;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(schemaName, tableName);
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj) {
+            return true;
+        }
+        if ((obj == null) || (getClass() != obj.getClass())) {
+            return false;
+        }
+
+        DruidTableHandle other = (DruidTableHandle) obj;
+        return Objects.equals(this.schemaName, other.schemaName) &&
+                Objects.equals(this.tableName, other.tableName);
+    }
+
+    @Override
+    public String toString()
+    {
+        return Joiner.on(".").join(schemaName, tableName);
+    }
+
+    public static DruidTableHandle fromSchemaTableName(SchemaTableName schemaTableName)
+    {
+        return new DruidTableHandle(schemaTableName.getSchemaName(), schemaTableName.getTableName());
+    }
+
+    public SchemaTableName toSchemaTableName()
+    {
+        return new SchemaTableName(schemaName, tableName);
+    }
 }

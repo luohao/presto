@@ -19,18 +19,32 @@ import javax.validation.constraints.NotNull;
 
 public class DruidConfig
 {
-    private String druidCoordinatorUrl;
+    private String coordinatorUrl;
+    private String brokerUrl;
 
     @NotNull
     public String getDruidCoordinatorUrl()
     {
-        return druidCoordinatorUrl;
+        return coordinatorUrl;
     }
 
     @Config("druid-coordinator-url")
-    public DruidConfig setDruidCoordinatorUrl(String druidCoordinatorUrl)
+    public DruidConfig setDruidCoordinatorUrl(String coordinatorUrl)
     {
-        this.druidCoordinatorUrl = druidCoordinatorUrl;
+        this.coordinatorUrl = coordinatorUrl;
+        return this;
+    }
+
+    @NotNull
+    public String getDruidBrokerUrl()
+    {
+        return brokerUrl;
+    }
+
+    @Config("druid-broker-url")
+    public DruidConfig setDruidBrokerUrl(String brokerUrl)
+    {
+        this.brokerUrl = brokerUrl;
         return this;
     }
 }
