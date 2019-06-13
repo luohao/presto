@@ -16,17 +16,47 @@ package com.facebook.presto.druid;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplitSource;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.FixedSplitSource;
+import com.facebook.presto.spi.HostAddress;
+import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
-import static java.lang.String.format;
+import javax.inject.Inject;
+
+import java.util.List;
+
+import static com.facebook.presto.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
 public class DruidSplitManager
         implements ConnectorSplitManager
 {
-    @Override
-    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableLayoutHandle layout, SplitSchedulingContext splitSchedulingContext)
+    private final DruidClient druidClient;
+
+    @Inject
+    public DruidSplitManager(DruidClient druidClient)
     {
-        throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
+        this.druidClient = requireNonNull(druidClient, "druid client is null");
+    }
+
+    @Override
+    public ConnectorSplitSource getSplits(
+            ConnectorTransactionHandle transactionHandle,
+            ConnectorSession session,
+            ConnectorTableLayoutHandle layoutHandle,
+            SplitSchedulingContext splitSchedulingContext)
+    {
+        DruidTableLayoutHandle layout = (DruidTableLayoutHandle) layoutHandle;
+        List<String> segmentIds = layout.getSegmentIds()
+                .orElseThrow(() -> new PrestoException(GENERIC_INTERNAL_ERROR, "Layout does not contain segments"));
+
+        List<DruidSplit> splits = segmentIds.stream()
+                .map(id -> druidClient.getSingleSegmentInfo(layout.getSchemaTableName().getTableName(), id))
+                .map(segmentInfo -> new DruidSplit(segmentInfo, HostAddress.fromUri(druidClient.getDruidBroker())))
+                .collect(toImmutableList());
+
+        return new FixedSplitSource(splits);
     }
 }

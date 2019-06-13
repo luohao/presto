@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.druid;
 
+import com.facebook.presto.druid.metadata.DruidColumnType;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorSession;
@@ -40,13 +41,8 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.facebook.presto.druid.DruidTableHandle.fromSchemaTableName;
-import static com.facebook.presto.spi.type.BigintType.BIGINT;
-import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
-import static com.facebook.presto.spi.type.RealType.REAL;
-import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class DruidMetadata
@@ -86,19 +82,21 @@ public class DruidMetadata
     @Override
     public List<ConnectorTableLayoutResult> getTableLayouts(ConnectorSession session, ConnectorTableHandle table, Constraint<ColumnHandle> constraint, Optional<Set<ColumnHandle>> desiredColumns)
     {
-        throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
+        DruidTableHandle tableHandle = (DruidTableHandle) table;
+        List<String> segments = druidClient.getDataSegmentIds(tableHandle.getTableName());
+        ConnectorTableLayout layout = new ConnectorTableLayout(new DruidTableLayoutHandle(((DruidTableHandle) table).toSchemaTableName(), segments));
+        return ImmutableList.of(new ConnectorTableLayoutResult(layout, constraint.getSummary()));
     }
 
     @Override
     public ConnectorTableLayout getTableLayout(ConnectorSession session, ConnectorTableLayoutHandle handle)
     {
-        throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
+        return new ConnectorTableLayout(handle);
     }
 
     @Override
     public ConnectorTableMetadata getTableMetadata(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        //throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
         DruidTableHandle druidTable = (DruidTableHandle) tableHandle;
         return toTableMetadata(druidTable.toSchemaTableName(), druidClient.getAllSegmentMetadata(druidTable.getTableName()));
     }
@@ -106,7 +104,6 @@ public class DruidMetadata
     @Override
     public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        //throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
         DruidTableHandle druidTable = (DruidTableHandle) tableHandle;
         ConnectorTableMetadata tableMetadata = toTableMetadata(druidTable.toSchemaTableName(), druidClient.getAllSegmentMetadata(druidTable.getTableName()));
         return tableMetadata.getColumns().stream()
@@ -188,17 +185,18 @@ public class DruidMetadata
 
             TODO: fix type for __time column
          */
-        switch (type.toUpperCase()) {
-            case "STRING":
-                return VARCHAR;
-            case "LONG":
-                return BIGINT;
-            case "FLOAT":
-                return REAL;
-            case "DOUBLE":
-                return DOUBLE;
-            default:
-                throw new IllegalArgumentException("unsupported type: " + type);
-        }
+//        switch (type.toUpperCase()) {
+//            case "STRING":
+//                return VARCHAR;
+//            case "LONG":
+//                return BIGINT;
+//            case "FLOAT":
+//                return REAL;
+//            case "DOUBLE":
+//                return DOUBLE;
+//            default:
+//                throw new IllegalArgumentException("unsupported type: " + type);
+//        }
+        return DruidColumnType.valueOf(type.toUpperCase()).getType();
     }
 }

@@ -28,7 +28,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
-public class SegmentMetadataRequest
+public class SegmentMetadataQueryRequest
 {
     @JsonProperty("queryType")
     private static final String QUERY_TYPE = "segmentMetadata";
@@ -37,7 +37,7 @@ public class SegmentMetadataRequest
     private final Optional<List<String>> intervals;
 
     @JsonCreator
-    public SegmentMetadataRequest(
+    public SegmentMetadataQueryRequest(
             @JsonProperty("dataSource") String dataSource,
             @JsonProperty("intervals") Optional<List<String>> intervals)
     {
@@ -106,12 +106,12 @@ public class SegmentMetadataRequest
             return withInterval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT);
         }
 
-        public SegmentMetadataRequest build()
+        public SegmentMetadataQueryRequest build()
         {
             List<String> intervals = intervalBuilder.build().stream()
                     .map(Interval::toString)
                     .collect(toImmutableList());
-            return new SegmentMetadataRequest(dataSource, intervals.size() == 0 ? Optional.empty() : Optional.of(intervals));
+            return new SegmentMetadataQueryRequest(dataSource, intervals.size() == 0 ? Optional.empty() : Optional.of(intervals));
         }
     }
 }

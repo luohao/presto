@@ -13,27 +13,36 @@
  */
 package com.facebook.presto.druid;
 
+import com.facebook.presto.druid.metadata.SegmentInfo;
 import io.airlift.http.client.jetty.JettyHttpClient;
-import org.apache.druid.query.metadata.metadata.SegmentAnalysis;
 import org.testng.annotations.Test;
 
 import java.util.List;
 
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
 
 public class TestDruidClient
 {
-    @Test
-    void test()
+    private final DruidClient client;
+
+    public TestDruidClient()
     {
         DruidConfig testConfig = new DruidConfig()
                 .setDruidCoordinatorUrl("http://localhost:8081")
                 .setDruidBrokerUrl("http://localhost:8082");
 
-        DruidClient client = new DruidClient(testConfig, new JettyHttpClient());
+        client = new DruidClient(testConfig, new JettyHttpClient());
+    }
 
-        List<SegmentAnalysis> metadata = client.getAllSegmentMetadata("wikipedia");
-
-        assertTrue(metadata.size() > 0);
+    @Test
+    void testSegments()
+    {
+        String dataSource = "wikipedia";
+        List<String> ids = client.getDataSegmentIds(dataSource);
+        assertEquals(ids.size(), 1);
+        SegmentInfo segmentInfo = client.getSingleSegmentInfo(dataSource, ids.get(0));
+        List<SegmentInfo> segmentInfos = client.getAllSegmentInfos(dataSource);
+        assertEquals(segmentInfos.size(), 1);
+        assertEquals(segmentInfos.get(0), segmentInfo);
     }
 }

@@ -14,8 +14,47 @@
 package com.facebook.presto.druid;
 
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.SchemaTableName;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.List;
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
 
 public class DruidTableLayoutHandle
         implements ConnectorTableLayoutHandle
 {
+    private final SchemaTableName schemaTableName;
+    private final List<String> segmentIds;
+
+    @JsonCreator
+    public DruidTableLayoutHandle(
+            @JsonProperty("schemaTableName") SchemaTableName schemaTableName)
+    {
+        this.schemaTableName = requireNonNull(schemaTableName, "table is null");
+        this.segmentIds = null;
+    }
+
+    public DruidTableLayoutHandle(
+            SchemaTableName schemaTableName,
+            List<String> segmentIds)
+    {
+        this.schemaTableName = requireNonNull(schemaTableName, "table is null");
+        this.segmentIds = requireNonNull(segmentIds, "segmentIds is null");
+    }
+
+    @JsonProperty
+    public SchemaTableName getSchemaTableName()
+    {
+        return schemaTableName;
+    }
+
+    @JsonIgnore
+    public Optional<List<String>> getSegmentIds()
+    {
+        return Optional.ofNullable(segmentIds);
+    }
 }

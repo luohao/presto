@@ -15,7 +15,7 @@ package com.facebook.presto.druid;
 
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
-import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
+import com.facebook.presto.spi.connector.ConnectorPageSourceProvider;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.transaction.IsolationLevel;
@@ -35,19 +35,19 @@ public class DruidConnector
     private final LifeCycleManager lifeCycleManager;
     private final DruidMetadata metadata;
     private final DruidSplitManager splitManager;
-    private final DruidRecordSetProvider recordSetProvider;
+    private final DruidPageSourceProvider pageSourceProvider;
 
     @Inject
     public DruidConnector(
             LifeCycleManager lifeCycleManager,
             DruidMetadata metadata,
             DruidSplitManager splitManager,
-            DruidRecordSetProvider recordSetProvider)
+            DruidPageSourceProvider pageSourceProvider)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
-        this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
     }
 
     @Override
@@ -69,9 +69,9 @@ public class DruidConnector
     }
 
     @Override
-    public ConnectorRecordSetProvider getRecordSetProvider()
+    public ConnectorPageSourceProvider getPageSourceProvider()
     {
-        return recordSetProvider;
+        return pageSourceProvider;
     }
 
     @Override

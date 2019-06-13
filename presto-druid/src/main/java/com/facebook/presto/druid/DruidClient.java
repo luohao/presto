@@ -14,7 +14,8 @@
 
 package com.facebook.presto.druid;
 
-import com.facebook.presto.druid.metadata.SegmentMetadataRequest;
+import com.facebook.presto.druid.metadata.SegmentInfo;
+import com.facebook.presto.druid.metadata.SegmentMetadataQueryRequest;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
@@ -37,6 +38,7 @@ import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.json.JsonCodec.listJsonCodec;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class DruidClient
@@ -48,7 +50,9 @@ public class DruidClient
     // codec
     private static final JsonCodec<List<String>> LIST_STRING_CODEC = listJsonCodec(String.class);
     private static final JsonCodec<List<SegmentAnalysis>> LIST_SEGMENT_ANALYSIS_CODEC = listJsonCodec(SegmentAnalysis.class);
-    private static final JsonCodec<SegmentMetadataRequest> SEGMENT_METADATA_REQUEST_CODEC = jsonCodec(SegmentMetadataRequest.class);
+    private static final JsonCodec<SegmentMetadataQueryRequest> SEGMENT_METADATA_REQUEST_CODEC = jsonCodec(SegmentMetadataQueryRequest.class);
+    private static final JsonCodec<SegmentInfo> SEGMENT_INFO_JSON_CODEC = jsonCodec(SegmentInfo.class);
+    private static final JsonCodec<List<SegmentInfo>> LIST_SEGMENT_INFO_JSON_CODEC = listJsonCodec(SegmentInfo.class);
 
     private final HttpClient httpClient;
     private final URI druidCoordinator;
@@ -63,12 +67,19 @@ public class DruidClient
         this.druidBroker = URI.create(config.getDruidBrokerUrl());
     }
 
+    public URI getDruidCoordinator()
+    {
+        return druidCoordinator;
+    }
+
+    public URI getDruidBroker()
+    {
+        return druidBroker;
+    }
+
     public List<String> getDataSources(boolean includeDisabled)
     {
-        HttpUriBuilder uriBuilder =
-                uriBuilderFrom(druidCoordinator)
-                        .replacePath(METADATA_PATH)
-                        .appendPath("datasources");
+        HttpUriBuilder uriBuilder = uriBuilderFrom(druidCoordinator).replacePath(METADATA_PATH).appendPath("datasources");
 
         if (includeDisabled) {
             uriBuilder.addParameter("includeDisabled");
@@ -82,7 +93,7 @@ public class DruidClient
 
     public List<SegmentAnalysis> getAllSegmentMetadata(String dataSource)
     {
-        return getSegmentMetadataBetween(dataSource, JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT);
+        return getSegmentMetadataSince(dataSource, JodaUtils.MIN_INSTANT);
     }
 
     public List<SegmentAnalysis> getSegmentMetadataSince(String dataSource, long startInstant)
@@ -92,7 +103,7 @@ public class DruidClient
 
     public List<SegmentAnalysis> getSegmentMetadataBetween(String dataSource, long startInstant, long endInstant)
     {
-        SegmentMetadataRequest.Builder builder = new SegmentMetadataRequest.Builder().dataSource(dataSource).withInterval(startInstant, endInstant);
+        SegmentMetadataQueryRequest.Builder builder = new SegmentMetadataQueryRequest.Builder().dataSource(dataSource).withInterval(startInstant, endInstant);
         byte[] requestBody = SEGMENT_METADATA_REQUEST_CODEC.toJsonBytes(builder.build());
 
         URI uri = uriBuilderFrom(druidBroker).replacePath(QUERY_PATH).build();
@@ -102,6 +113,46 @@ public class DruidClient
                 .build();
 
         return httpClient.execute(request, createJsonResponseHandler(LIST_SEGMENT_ANALYSIS_CODEC));
+    }
+
+    public List<String> getDataSegmentIds(String dataSource)
+    {
+        URI uri = uriBuilderFrom(druidCoordinator)
+                .replacePath(METADATA_PATH)
+                .appendPath(format("datasources/%s/segments", dataSource))
+                .build();
+        Request request = setContentTypeHeaders(prepareGet())
+                .setUri(uri)
+                .build();
+
+        return httpClient.execute(request, createJsonResponseHandler(LIST_STRING_CODEC));
+    }
+
+    public SegmentInfo getSingleSegmentInfo(String dataSource, String segmentId)
+    {
+        URI uri = uriBuilderFrom(druidCoordinator)
+                .replacePath(METADATA_PATH)
+                .appendPath(format("datasources/%s/segments/%s", dataSource, segmentId))
+                .build();
+        Request request = setContentTypeHeaders(prepareGet())
+                .setUri(uri)
+                .build();
+
+        return httpClient.execute(request, createJsonResponseHandler(SEGMENT_INFO_JSON_CODEC));
+    }
+
+    public List<SegmentInfo> getAllSegmentInfos(String dataSource)
+    {
+        URI uri = uriBuilderFrom(druidCoordinator)
+                .replacePath(METADATA_PATH)
+                .appendPath(format("datasources/%s/segments", dataSource))
+                .addParameter("full")
+                .build();
+        Request request = setContentTypeHeaders(prepareGet())
+                .setUri(uri)
+                .build();
+
+        return httpClient.execute(request, createJsonResponseHandler(LIST_SEGMENT_INFO_JSON_CODEC));
     }
 
     private static Request.Builder setContentTypeHeaders(Request.Builder requestBuilder)

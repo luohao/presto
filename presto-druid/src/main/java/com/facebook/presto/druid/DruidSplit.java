@@ -13,31 +13,60 @@
  */
 package com.facebook.presto.druid;
 
+import com.facebook.presto.druid.metadata.SegmentInfo;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.HostAddress;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 
 import java.util.List;
 
-import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 public class DruidSplit
         implements ConnectorSplit
 {
+    private final SegmentInfo segmentInfo;
+    private final HostAddress address;
+
+    @JsonCreator
+    public DruidSplit(
+            @JsonProperty("segmentInfo") SegmentInfo segmentInfo,
+            @JsonProperty("address") HostAddress address)
+    {
+        this.segmentInfo = requireNonNull(segmentInfo, "segment info is null");
+        this.address = requireNonNull(address, "address info is null");
+    }
+
+    @JsonProperty
+    public SegmentInfo getSegmentInfo()
+    {
+        return segmentInfo;
+    }
+
+    @JsonProperty
+    public HostAddress getAddress()
+    {
+        return address;
+    }
+
     @Override
     public boolean isRemotelyAccessible()
     {
-        throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
+        return true;
     }
 
     @Override
     public List<HostAddress> getAddresses()
     {
-        throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
+//        return ImmutableList.of(address);
+        return ImmutableList.of();
     }
 
     @Override
     public Object getInfo()
     {
-        throw new UnsupportedOperationException(format("Unimplemented method: %s", new Object().getClass().getEnclosingClass().getName()));
+        return this;
     }
 }
