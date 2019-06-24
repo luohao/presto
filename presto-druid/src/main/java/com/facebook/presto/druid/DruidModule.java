@@ -13,7 +13,6 @@
  */
 package com.facebook.presto.druid;
 
-import com.facebook.presto.druid.util.HdfsUtil;
 import com.facebook.presto.spi.type.TypeManager;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -50,7 +49,5 @@ public class DruidModule
         binder.bind(DruidHandleResolver.class).in(Scopes.SINGLETON);
         binder.bind(DruidPageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(DruidClient.class).in(Scopes.SINGLETON);
-
-        binder.bind(HdfsUtil.class).in(Scopes.SINGLETON);
     }
 }

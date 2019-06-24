@@ -11,28 +11,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.facebook.presto.druid.segment;
+package com.facebook.presto.druid;
 
-import java.io.Closeable;
+import com.facebook.presto.spi.ConnectorPageSource;
+import com.facebook.presto.spi.Page;
+
 import java.io.IOException;
 
-public interface IndexSource
-        extends Closeable
+public class DruidPageSource
+        implements ConnectorPageSource
 {
-    SegmentSourceId getId();
-
-    long getReadBytes();
-
-    long getReadTimeNanos();
-
-    long getSize();
-
-    void readFully(long position, byte[] buffer);
-
-    void readFully(long position, byte[] buffer, int bufferOffset, int bufferLength);
+    @Override
+    public long getCompletedBytes()
+    {
+        return 0;
+    }
 
     @Override
-    default void close()
+    public long getReadTimeNanos()
+    {
+        return 0;
+    }
+
+    @Override
+    public boolean isFinished()
+    {
+        return true;
+    }
+
+    @Override
+    public Page getNextPage()
+    {
+        return null;
+    }
+
+    @Override
+    public long getSystemMemoryUsage()
+    {
+        return 0;
+    }
+
+    @Override
+    public void close()
             throws IOException
     {
     }
