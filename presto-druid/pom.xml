@@ -130,5 +130,9 @@
             <artifactId>presto-main</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.facebook.presto.hadoop</groupId>
+            <artifactId>hadoop-apache2</artifactId>
+        </dependency>
     </dependencies>
 </project>
